@@ -30,3 +30,23 @@ body.dark .car-art>.year{background:#283025cb;color:#e0e8d9}
 .calendar-recovery summary{cursor:pointer}
 .calendar-panel .eyebrow{font-size:9px}
 @media(max-width:620px){.calendar-panel{padding:18px}.calendar-options label{min-width:100%;width:100%}}
+
+.task-clock{display:block;font-size:11px;font-weight:700;margin-top:3px}
+
+/* DC RUST GARAGE branding and vehicle profile form. */
+.brand.dc-brand{justify-content:center;gap:0;margin:0 0 28px;letter-spacing:normal}
+.dc-brand img{display:block;width:148px;height:148px;object-fit:contain}
+.mobile-brand-name{display:none}
+.car-facts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:17px 0 0}
+.car-facts dt{font-size:10px;color:var(--muted);margin-bottom:4px}
+.car-facts dd{margin:0;font-size:13px;font-weight:600;overflow-wrap:anywhere}
+.car-card-specs{overflow-wrap:anywhere;line-height:1.65}
+.car-cover-editor{padding:17px;background:var(--bg);border:1px solid var(--line);border-radius:10px;margin:0 0 16px}
+.car-cover-editor h3{font-size:14px;margin:0 0 12px}
+.cover-upload-preview{height:200px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--soft);overflow:hidden;margin-bottom:15px;font-size:12px;color:var(--muted);text-align:center}
+.cover-upload-preview span{padding:20px}
+.cover-upload-preview img{display:block;width:100%;height:100%;object-fit:contain;background:var(--soft)}
+.cover-upload-label input{background:var(--panel);font-size:12px}
+.car-cover-editor label:last-child{margin-bottom:0}
+@media(max-width:850px) and (min-width:621px){.dc-brand img{width:130px;height:130px}}
+@media(max-width:620px){.brand.dc-brand{justify-content:flex-start;gap:15px;margin:0 0 14px}.dc-brand img{width:76px;height:76px}.mobile-brand-name{display:block;font-size:17px;font-weight:800}.car-facts{gap:12px}.car-cover-editor{padding:13px}.cover-upload-preview{height:180px}}

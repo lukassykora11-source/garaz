@@ -39,11 +39,16 @@
     const done=task.status==='done',state={todo:'Naplánováno',doing:'V řešení',waiting:'Čeká na díly',done:'Hotovo'}[task.status]||'Naplánováno';
     const description=[task.description||'', '', 'Auto: '+(car?.name||'Bez auta'),'Stav: '+state,'Zařizuje: '+(task.owner||'Nepřiřazeno'),'Upravuj v aplikaci Garáž: '+appUrl].map(core.escape).join('\n');
     const reminders=done||binding.reminder==='none'?{useDefault:false,overrides:[]}:binding.reminder==='default'?{useDefault:true}:{useDefault:false,overrides:[{method:'popup',minutes:Number(binding.reminder)}]};
-    return {summary:(done?'✓ HOTOVO · ':'')+(car?.name?car.name+' · ':'')+task.title,description,start:{date:task.due},end:{date:core.offset(1,core.date(task.due))},status:'confirmed',transparency:done?'transparent':'opaque',colorId:done?'8':task.priority==='high'?'11':task.status==='doing'?'10':task.status==='waiting'?'5':'9',reminders,extendedProperties:{private:{garazApp:APP,garazSheetId:binding.sourceSheetId,garazTaskId:task.id}},source:{title:'Garáž',url:appUrl}};
+    const timing=core.taskTiming(task);
+    return {summary:(done?'✓ HOTOVO · ':'')+(car?.name?car.name+' · ':'')+task.title,description,...timing,status:'confirmed',transparency:done?'transparent':'opaque',colorId:done?'8':task.priority==='high'?'11':task.status==='doing'?'10':task.status==='waiting'?'5':'9',reminders,extendedProperties:{private:{garazApp:APP,garazSheetId:binding.sourceSheetId,garazTaskId:task.id}},source:{title:'Garáž',url:appUrl}};
   }
   function same(existing,wanted){
     for(const field of ['summary','description','status','transparency','colorId'])if((existing[field]||'')!==wanted[field])return false;
-    if(existing.start?.date!==wanted.start.date||existing.end?.date!==wanted.end.date)return false;
+    for(const edge of ['start','end']){
+      const a=existing[edge]||{},b=wanted[edge];
+      if(b.date){if(a.date!==b.date||a.dateTime)return false;}
+      else if(a.date||!a.dateTime||Date.parse(a.dateTime)!==Date.parse(b.dateTime))return false;
+    }
     const a=existing.reminders||{},b=wanted.reminders;
     if(!!a.useDefault!==b.useDefault)return false;
     if(!b.useDefault){const normalized=v=>(v||[]).map(r=>r.method+':'+r.minutes).sort().join('|');if(normalized(a.overrides)!==normalized(b.overrides))return false;}
@@ -88,7 +93,8 @@
         const wanted=payload(task,car,binding,core,appUrl);
         if(current){
           if(same(current,wanted)){results.unchanged++;continue;}
-          guard();await google.calendarApi(base+'/'+enc(current.id)+'?sendUpdates=none',json('PATCH',{...wanted,extendedProperties:{private:{...(current.extendedProperties?.private||{}),...wanted.extendedProperties.private}}},current.etag));results.updated++;
+          const timingPatch={start:{date:null,dateTime:null,timeZone:null,...wanted.start},end:{date:null,dateTime:null,timeZone:null,...wanted.end}};
+          guard();await google.calendarApi(base+'/'+enc(current.id)+'?sendUpdates=none',json('PATCH',{...wanted,...timingPatch,extendedProperties:{private:{...(current.extendedProperties?.private||{}),...wanted.extendedProperties.private}}},current.etag));results.updated++;
         }else{
           let candidate=await hash([sheet,task.id,...(task._heads||[]).slice().sort()].join('|')),written=false;
           for(let attempt=0;attempt<6&&!written;attempt++){
@@ -99,7 +105,7 @@
               const conflict=await google.calendarApi(base+'/'+enc(candidate));
               if(conflict.status==='cancelled'){candidate=await hash(candidate+'|revive');continue;}
               if(!owned(conflict,sheet)||conflict.extendedProperties?.private?.garazTaskId!==task.id)throw new Error('Kolize ID události. Cizí událost nebyla změněna.');
-              if(!same(conflict,wanted)){guard();await google.calendarApi(base+'/'+enc(candidate)+'?sendUpdates=none',json('PATCH',wanted,conflict.etag));results.updated++;}else results.unchanged++;
+              if(!same(conflict,wanted)){guard();await google.calendarApi(base+'/'+enc(candidate)+'?sendUpdates=none',json('PATCH',{...wanted,start:{date:null,dateTime:null,timeZone:null,...wanted.start},end:{date:null,dateTime:null,timeZone:null,...wanted.end}},conflict.etag));results.updated++;}else results.unchanged++;
               written=true;
             }
           }

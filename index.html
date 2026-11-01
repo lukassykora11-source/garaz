@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f5f4f0"><meta name="description" content="Společná garáž. Auta, opravy, nápady a termíny na jednom místě.">
-  <title>Garáž — auta pod kontrolou</title>
+  <title>DC RUST GARAGE — auta pod kontrolou</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=20261101-calendar1">
-  <script src="config.js" defer></script><script src="core.js" defer></script><script src="google.js?v=20261101-calendar1" defer></script><script src="calendar.js?v=20261101-calendar1" defer></script><script src="app.js?v=20261101-calendar1" defer></script>
+  <link rel="stylesheet" href="style.css?v=20261101-profile1">
+  <script src="config.js" defer></script><script src="core.js?v=20261101-profile1" defer></script><script src="google.js?v=20261101-profile1" defer></script><script src="calendar.js?v=20261101-profile1" defer></script><script src="app.js?v=20261101-profile1" defer></script>
 </head>
 <body>
   <aside class="sidebar">
-    <a class="brand" href="#overview"><span class="brand-mark">g<span>·</span></span><span>garáž<small>MÍSTO PRO TVOJE AUTA</small></span></a>
+    <a class="brand dc-brand" href="#overview" aria-label="DC RUST GARAGE — přehled"><img src="logo.webp" width="148" height="148" alt="DC RUST GARAGE"><span class="mobile-brand-name">DC RUST GARAGE</span></a>
     <span class="nav-label">PRACOVNÍ PROSTOR</span>
     <nav aria-label="Hlavní menu">
       <button data-view="overview"><span>◫</span>Přehled</button>
@@ -26,7 +26,7 @@
     <header><div class="breadcrumb">Moje garáž <span>/</span> <b id="breadcrumb">Přehled</b></div><div class="header-actions"><span id="connection" class="connection">Ukázkový režim</span><button class="button small" id="sync">Obnovit</button><button class="avatar" id="account" aria-label="Přihlášení a nastavení">G</button></div></header>
     <div id="mode-banner" class="mode-banner"></div>
     <main id="main" tabindex="-1"></main>
-    <footer>Garáž <span>·</span> Každá oprava začíná dobrým plánem.</footer>
+    <footer>DC RUST GARAGE <span>·</span> Každá oprava začíná dobrým plánem.</footer>
   </div>
   <dialog id="editor"><div class="dialog-head"><div><span class="eyebrow" id="dialog-eyebrow">MOJE GARÁŽ</span><h2 id="dialog-title"></h2></div><button class="icon-button" id="close-dialog" aria-label="Zavřít">×</button></div><form id="editor-form"><div id="form-fields"></div><div class="form-actions"><button type="button" class="button" id="cancel-dialog">Zrušit</button><button type="submit" class="button primary" id="save-button">Uložit</button></div></form></dialog>
   <div id="toast" role="status" aria-live="polite"></div>

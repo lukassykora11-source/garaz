@@ -4,6 +4,7 @@
 
 - Samostatný Google kalendář **Garáž — opravy a termíny**.
 - Jednosměrný přenos úkolů z Garáže do Google Kalendáře.
+- Volitelný čas úkolu, například 15:00. S časem vznikne hodinová událost, bez času zůstává celodenní.
 - Změna názvu, popisu, odpovědné osoby, stavu nebo termínu aktualizuje stejnou událost.
 - Dokončený úkol zůstává s označením HOTOVO, šedou barvou a bez připomínky.
 - Úkol bez termínu, odstraněný úkol nebo úkol s vypnutým přenosem se z kalendáře odebere. Záznamy v evidenci tím nejsou odstraněny.
@@ -66,7 +67,7 @@ V přehledu synchronizace uvidíš počty nových, změněných a odebraných ud
 
 ## 5. Připomínky a další lidé
 
-V Garáži může vlastník změnit předstih připomínky. Termíny jsou celodenní, nikoli rezervované hodiny v servisu. Přesný čas připomínky si zkontroluj na první události v Google Kalendáři; předstih se počítá k začátku celodenní události.
+V Garáži může vlastník změnit předstih připomínky. K termínu úkolu lze vyplnit volitelný čas. S časem aplikace rezervuje v Google Kalendáři 1 hodinu. Bez času zůstává událost celodenní. Časy se vyhodnocují v pásmu Europe/Prague včetně letního a zimního času. Přesný čas připomínky si zkontroluj na první události v Google Kalendáři; předstih se počítá k začátku události. Při přechodu na zimní čas se u opakující se hodiny použije její první výskyt; neexistující hodina při přechodu na letní čas se odmítne.
 
 Pro upozornění na telefonu musíš mít v Google Kalendáři přidaný stejný účet, zapnuté zobrazení kalendáře a povolená oznámení v telefonu. Nelze zaručit doručení, pokud telefon oznámení blokuje nebo má úsporná omezení.
 
@@ -90,7 +91,7 @@ Obnova přijme pouze samostatný kalendář vytvořený aplikací pro stejnou sp
 
 ## Ověření před předáním
 
-Prošly automatické kontroly syntaxe a simulované testy vytvoření, opakovaného přenosu, posunu termínu, dokončení, odebrání termínu, vypnutí přenosu, stránkování, souběžných změn, přerušení připojení a zachování cizích událostí. Ověřeno bylo také zachování stávající konfigurace a oddělené ukládání nastavení do tabulky.
+Prošly automatické kontroly syntaxe a simulované testy vytvoření, opakovaného přenosu, posunu termínu, dokončení, odebrání termínu, vypnutí přenosu, stránkování, souběžných změn, přerušení připojení a zachování cizích událostí. Ověřeno bylo také zachování stávající konfigurace a oddělené ukládání nastavení do tabulky. Prošly testy volitelného času, časového pásma Praha v létě i zimě, přechodu přes půlnoc, přepnutí celodenní/časované události, uchování ID události a ICS exportu s časem.
 
 Živé ověření nového OAuth oprávnění, vytvoření skutečného kalendáře, vzhledu a přenosu události je potřeba dokončit s tvým Google účtem po nahrání aktualizace. Samotné zapnutí Calendar API funkci do dřívější verze aplikace nepřidává.
 
