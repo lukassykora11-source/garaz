@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="cs">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f5f4f0"><meta name="description" content="Společná garáž. Auta, opravy, nápady a termíny na jednom místě.">
+  <title>Garáž — auta pod kontrolou</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js" defer></script><script src="core.js" defer></script><script src="google.js" defer></script><script src="app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#overview"><span class="brand-mark">g<span>·</span></span><span>garáž<small>MÍSTO PRO TVOJE AUTA</small></span></a>
+    <span class="nav-label">PRACOVNÍ PROSTOR</span>
+    <nav aria-label="Hlavní menu">
+      <button data-view="overview"><span>◫</span>Přehled</button>
+      <button data-view="cars"><span>▱</span>Moje auta <b id="car-count"></b></button>
+      <button data-view="tasks"><span>☑</span>Úkoly <b id="task-count"></b></button>
+      <button data-view="calendar"><span>▦</span>Kalendář</button>
+      <button data-view="notes"><span>▤</span>Poznámky a odkazy</button>
+      <button data-view="photos"><span>▧</span>Fotky</button>
+    </nav>
+    <div class="sidebar-bottom"><div class="sidebar-note"><span class="small-dot"></span> Méně věcí v hlavě.<br><strong>Více času v garáži.</strong></div><button data-view="settings" class="settings-nav">⚙ <span>Nastavení a přístup</span></button><button id="theme" class="settings-nav">◐ <span>Tmavý vzhled</span></button></div>
+  </aside>
+  <div class="workspace">
+    <header><div class="breadcrumb">Moje garáž <span>/</span> <b id="breadcrumb">Přehled</b></div><div class="header-actions"><span id="connection" class="connection">Ukázkový režim</span><button class="button small" id="sync">Obnovit</button><button class="avatar" id="account" aria-label="Přihlášení a nastavení">G</button></div></header>
+    <div id="mode-banner" class="mode-banner"></div>
+    <main id="main" tabindex="-1"></main>
+    <footer>Garáž <span>·</span> Každá oprava začíná dobrým plánem.</footer>
+  </div>
+  <dialog id="editor"><div class="dialog-head"><div><span class="eyebrow" id="dialog-eyebrow">MOJE GARÁŽ</span><h2 id="dialog-title"></h2></div><button class="icon-button" id="close-dialog" aria-label="Zavřít">×</button></div><form id="editor-form"><div id="form-fields"></div><div class="form-actions"><button type="button" class="button" id="cancel-dialog">Zrušit</button><button type="submit" class="button primary" id="save-button">Uložit</button></div></form></dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <noscript>Pro používání Garáže zapni JavaScript.</noscript>
+</body></html>
