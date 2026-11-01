@@ -1,8 +1,7 @@
-// Veřejná konfigurace. Sem nikdy nevkládej client secret, heslo ani přístupový token.
 window.GARAZ_CONFIG = {
-  clientId: '',        // Google OAuth Client ID (Web application)
-  apiKey: '',          // API key pro Google Picker, omezený na tvoji doménu
-  projectNumber: '',   // Číselné Project number z Google Cloud
-  spreadsheetId: '',  // Po vytvoření zkopíruj z Nastavení, pak budou všichni používat stejná data
-  folderId: ''         // ID sdílené složky pro fotky
+  clientId: '621344193106-2ng82u84fk00u9lhv1ve0k34oc01o234.apps.googleusercontent.com',
+  apiKey: 'AIzaSyChsZCwYj58DSkrOvInsoTouQwJNtw-JLE,
+  projectNumber: '621344193106',
+  spreadsheetId: '',
+  folderId: ''
 };
