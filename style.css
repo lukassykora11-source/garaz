@@ -16,3 +16,17 @@ body.dark{--bg:#202521;--panel:#292f2a;--side:#232923;--ink:#edf0e9;--muted:#a2a
 body.dark .car-art>.year{background:#283025cb;color:#e0e8d9}
 .checkbox-label{display:flex;align-items:flex-start;gap:9px;font-size:12px;font-weight:400}
 .checkbox-label input{display:inline-block;width:auto;margin:4px 0 0;flex-shrink:0}
+
+.calendar-panel{padding:22px;margin-bottom:25px}
+.calendar-panel h3{margin:0}
+.calendar-panel p{font-size:12px;margin:12px 0}
+.calendar-panel .calendar-note{font-size:11px;line-height:1.65;color:var(--muted)}
+.calendar-binding{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.calendar-binding strong{font-size:13px}
+.calendar-options{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:18px 0}
+.calendar-options label{margin:0;min-width:230px}
+.calendar-status{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink)}
+.calendar-recovery{font-size:11px;margin-top:18px;color:var(--muted)}
+.calendar-recovery summary{cursor:pointer}
+.calendar-panel .eyebrow{font-size:9px}
+@media(max-width:620px){.calendar-panel{padding:18px}.calendar-options label{min-width:100%;width:100%}}

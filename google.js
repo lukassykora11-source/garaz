@@ -2,7 +2,9 @@
 window.GarazGoogle = (() => {
   const key = 'garaz.settings.v1:' + location.pathname;
   let saved={}; try { saved=JSON.parse(localStorage.getItem(key)||'{}'); } catch {}
-  let config={...(window.GARAZ_CONFIG||{}),...saved}, token='', expires=0, profile=null;
+  let config={...(window.GARAZ_CONFIG||{}),...saved}, token='', expires=0, profile=null, calendarGranted=false;
+  const BASE_SCOPES='https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
+  const CALENDAR_SCOPE='https://www.googleapis.com/auth/calendar.app.created';
   const headers=['event_id','entity','record_id','parents_json','at','author','data_json'];
   let capabilities={canEdit:false}, folderWritable=false;
   const scripts=new Map();
@@ -11,16 +13,18 @@ window.GarazGoogle = (() => {
     const p=new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=()=>{scripts.delete(src);reject(new Error('Nepodařilo se načíst přihlášení Google. Zkontroluj připojení a blokování skriptů.'));};document.head.append(s);});
     scripts.set(src,p);return p;
   }
-  async function connect() {
+  async function connect(withCalendar=false) {
     if(!config.clientId) throw new Error('Nejdřív v Nastavení vyplň Google Client ID, API key a číslo projektu.');
     await script('https://accounts.google.com/gsi/client');
     const response=await new Promise((resolve,reject)=>{
-      const client=google.accounts.oauth2.initTokenClient({client_id:config.clientId,scope:'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',callback:r=>r.error?reject(new Error(r.error_description||r.error)):resolve(r),error_callback:()=>reject(new Error('Přihlášení nebylo dokončeno. Povol přihlašovací okno a zkus to znovu.'))});
-      client.requestAccessToken({prompt:'select_account'});
+      const client=google.accounts.oauth2.initTokenClient({client_id:config.clientId,scope:BASE_SCOPES+(withCalendar?' '+CALENDAR_SCOPE:''),include_granted_scopes:true,...(withCalendar&&profile?.email?{hint:profile.email}:{}),callback:r=>r.error?reject(new Error(r.error_description||r.error)):resolve(r),error_callback:()=>reject(new Error('Přihlášení nebylo dokončeno. Povol přihlašovací okno a zkus to znovu.'))});
+      client.requestAccessToken({prompt:withCalendar?'':'select_account'});
     });
     if(!google.accounts.oauth2.hasGrantedAllScopes(response,'https://www.googleapis.com/auth/drive.file')) throw new Error('Pro práci s daty je potřeba povolit přístup k vybraným souborům.');
     token=response.access_token;expires=Date.now()+Number(response.expires_in)*1000-30000;
-    profile=await request('https://www.googleapis.com/oauth2/v3/userinfo');
+    calendarGranted=google.accounts.oauth2.hasGrantedAllScopes(response,CALENDAR_SCOPE);
+    try{profile=await request('https://www.googleapis.com/oauth2/v3/userinfo');}
+    catch(error){logout();throw error;}
     return profile;
   }
   function ready() { return !!token && Date.now()<expires; }
@@ -31,7 +35,7 @@ window.GarazGoogle = (() => {
     try {r=await fetch(url,{...options,headers:{Authorization:'Bearer '+token,...options.headers},signal:controller.signal});}
     catch(e){throw new Error(e.name==='AbortError'?'Google neodpověděl včas. Obnov data a ověř, zda se změna uložila.':'Spojení s Googlem selhalo. Obnov data a ověř poslední změnu.');}
     finally {clearTimeout(timer);}
-    if(!r.ok){let error={};try{error=await r.json();}catch{}if(r.status===401){token='';throw new Error('Přihlášení vypršelo. Přihlas se znovu.');}if(r.status===403||r.status===404)throw new Error('K souboru chybí oprávnění, výběr pro aplikaci nebo zapnuté API. V Nastavení jej vyber přes Google a ověř sdílení. ('+r.status+')');throw new Error(error.error?.message||'Google vrátil chybu '+r.status);}
+    if(!r.ok){let error={};try{error=await r.json();}catch{}let message=error.error?.message||'Google vrátil chybu '+r.status;if(r.status===401){token='';message='Přihlášení vypršelo. Přihlas se znovu.';}else if((r.status===403||r.status===404)&&!url.startsWith('https://www.googleapis.com/calendar/'))message='K souboru chybí oprávnění, výběr pro aplikaci nebo zapnuté API. V Nastavení jej vyber přes Google a ověř sdílení. ('+r.status+')';const failure=new Error(message);failure.status=r.status;failure.reasons=error.error?.errors||[];throw failure;}
     if(r.status===204)return {};
     return options.blob?r.blob():r.json();
   }
@@ -97,6 +101,51 @@ window.GarazGoogle = (() => {
     return request('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink&supportsAllDrives=true',{method:'POST',body:form});
   }
   async function photo(id){return request('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+'?alt=media&supportsAllDrives=true',{blob:true});}
-  function logout(){token='';expires=0;profile=null;capabilities={canEdit:false};}
-  return {connect,ready,load,append,pick,createSheet,createFolder,upload,photo,persist,logout,get config(){return {...config};},get profile(){return profile;},get canEdit(){return !!capabilities.canEdit;}};
+  async function authorizeCalendar(){
+    if(!ready()||!profile)throw new Error('Nejdřív se přihlas ke společné tabulce.');
+    const previous=profile.sub||profile.email;
+    await connect(true);
+    if((profile.sub||profile.email)!==previous){logout();throw new Error('Pro kalendář vyber stejný účet jako pro Garáž. Přihlas se znovu.');}
+    if(!calendarGranted)throw new Error('Přístup ke kalendáři nebyl povolen. Evidence aut může dál fungovat bez kalendáře.');
+  }
+  async function calendarApi(path,options={}){
+    if(!calendarGranted)throw new Error('Nejdřív povol Google Kalendář tlačítkem v Nastavení.');
+    if(typeof path!=='string'||!path.startsWith('/')||path.startsWith('//'))throw new Error('Neplatná adresa kalendáře.');
+    return request('https://www.googleapis.com/calendar/v3'+path,options);
+  }
+  async function loadCalendarConfig(){
+    if(!config.spreadsheetId)return null;
+    const meta=await request(sheetBase()+'?fields=sheets(properties(title))');
+    if(!meta.sheets?.some(s=>s.properties?.title==='Kalendar'))return null;
+    const rows=await request(sheetBase()+'/values/'+encodeURIComponent('Kalendar!A:A'));
+    if(!rows.values?.length)return null;
+    if(rows.values[0][0]!=='garaz_calendar_v1')throw new Error('List Kalendar není nastavení Garáže. Přejmenuj vlastní list, aby aplikace nepřepsala tvá data.');
+    const history=(rows.values||[]).slice(1).filter(r=>r[0]).map((r,i)=>{try{const v=JSON.parse(r[0]);if(!v.revision||!Array.isArray(v.parents)||!v.calendarId||!v.ownerEmail)throw Error();return v;}catch{throw new Error('Neplatné nastavení kalendáře na řádku '+(i+2)+'.');}});
+    const superseded=new Set(history.flatMap(v=>v.parents)),heads=history.filter(v=>!superseded.has(v.revision));
+    if(!heads.length)return null;
+    const latest=heads[heads.length-1];
+    return {...latest,_heads:heads.map(v=>v.revision),_conflict:heads.length>1};
+  }
+  async function saveCalendarConfig(value,expectedHeads=[]){
+    if(!capabilities.canEdit)throw new Error('Nastavení kalendáře může uložit pouze editor společné tabulky.');
+    const existing=await loadCalendarConfig();
+    if(JSON.stringify([...(existing?._heads||[])].sort())!==JSON.stringify([...expectedHeads].sort()))throw new Error('Nastavení kalendáře se mezitím změnilo. Obnov stránku Nastavení.');
+    if(existing&&existing.ownerEmail.toLowerCase()!==profile.email.toLowerCase())throw new Error('Nastavení mění účet, který kalendář propojil: '+existing.ownerEmail);
+    if(!existing){
+      const meta=await request(sheetBase()+'?fields=sheets(properties(title))');
+      if(!meta.sheets?.some(s=>s.properties?.title==='Kalendar')){
+        try{await request(sheetBase()+':batchUpdate',json('POST',{requests:[{addSheet:{properties:{title:'Kalendar'}}}]}));}
+        catch(error){const check=await request(sheetBase()+'?fields=sheets(properties(title))');if(!check.sheets?.some(s=>s.properties?.title==='Kalendar'))throw error;}
+      }
+      const first=await request(sheetBase()+'/values/'+encodeURIComponent('Kalendar!A1'));
+      if(first.values?.[0]?.[0]&&first.values[0][0]!=='garaz_calendar_v1')throw new Error('Existující list Kalendar má jiný obsah. Data nebudou přepsána.');
+      if(!first.values?.[0]?.[0])await request(sheetBase()+'/values/'+encodeURIComponent('Kalendar!A1')+'?valueInputOption=RAW',json('PUT',{values:[['garaz_calendar_v1']]}));
+    }
+    const revision=crypto.randomUUID(),payload={...value,ownerEmail:profile.email,revision,parents:expectedHeads,updatedAt:new Date().toISOString()};
+    delete payload._heads;delete payload._conflict;
+    await request(sheetBase()+'/values/'+encodeURIComponent('Kalendar!A:A')+':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS',json('POST',{values:[[JSON.stringify(payload)]]}));
+    return {...payload,_heads:[revision],_conflict:false};
+  }
+  function logout(){token='';expires=0;profile=null;calendarGranted=false;capabilities={canEdit:false};}
+  return {connect,ready,load,append,pick,createSheet,createFolder,upload,photo,persist,logout,authorizeCalendar,calendarApi,loadCalendarConfig,saveCalendarConfig,get calendarGranted(){return calendarGranted&&ready();},get config(){return {...config};},get profile(){return profile;},get canEdit(){return !!capabilities.canEdit;}};
 })();

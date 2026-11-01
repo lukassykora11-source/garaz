@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  const C=window.GarazCore,G=window.GarazGoogle,$=s=>document.querySelector(s),e=C.escape;
+  const C=window.GarazCore,G=window.GarazGoogle,H=window.GarazCalendar,$=s=>document.querySelector(s),e=C.escape;
   const prefix='garaz.demo.v1:'+location.pathname;
   const status={todo:'Naplánováno',doing:'V řešení',waiting:'Čeká na díly',done:'Hotovo'};
   const kinds={repair:'Oprava',improve:'Vylepšení',service:'Údržba',inspection:'STK / kontrola',other:'Ostatní'};
@@ -8,6 +8,8 @@
   const labels={overview:'Přehled',cars:'Moje auta',tasks:'Úkoly',calendar:'Kalendář',notes:'Poznámky a odkazy',photos:'Fotky',settings:'Nastavení a přístup',car:'Detail auta'};
   let mode='demo',events=[],data=C.reduce([]),view='overview',carId='',carTab='tasks',busy=false,uploading=false,month=new Date(),filters={q:'',car:'',status:'open'},edit=null,lastSync='',toastTimer;
   let renderVersion=0;const photoUrls=new Map();
+  let calendarBinding=null,calendarConfigError='',calendarSetupBusy=false;
+  const calendarState={running:false,message:'',error:'',lastSync:''};
   const uid=()=>crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
   const today=()=>C.day(new Date());
   const fmt=(s,options={day:'numeric',month:'short'})=>s?new Intl.DateTimeFormat('cs-CZ',options).format(C.date(s)):'Bez termínu';
@@ -48,6 +50,7 @@
         if(!events.some(r=>r.id===row.id))setData([...events,row]);
         try{await loadCloud();}catch{notify('Změna je uložená v Googlu. Úplné obnovení dat se nepodařilo; zkus Obnovit.');}
       }
+      if(mode==='cloud'&&['cars','tasks'].includes(entity))setTimeout(()=>syncCalendar(false),600);
     }finally{busy=false;}
   }
   function art(c){
@@ -82,7 +85,88 @@
   function photosList(list){return list.length?`<div class="photo-grid">${list.map(f=>`<article class="photo-card"><div class="photo-placeholder" data-photo="${e(f.id)}">Načítám náhled…</div><div class="photo-caption"><strong>${e(f.title||f.name)}</strong>${car(f.carId)?.coverFileId===f.id?'<span class="badge done">Úvodní fotka</span>':writable()?button('Použít jako úvodní','use-cover',`data-id="${e(f.id)}"`,'text-button'):''}<small>${e(car(f.carId)?.name)}${f.taskId?' · '+e(data.tasks.find(t=>t.id===f.taskId)?.title||'Úkol'):''}</small><div class="note-bottom"><span>${fmt(f.createdAt?.slice(0,10))}</span>${f.driveId?`<a href="https://drive.google.com/file/d/${encodeURIComponent(f.driveId)}/view" target="_blank" rel="noopener noreferrer">Otevřít na Disku ↗</a>`:button('Otevřít fotku ↗','open-photo',`data-id="${e(f.id)}"`,'text-button')}</div></div></article>`).join('')}</div>`:empty('Zatím bez fotek','Vyfoť stav před opravou, průběh práce nebo zajímavý detail.','new-photo','+ Přidat fotky');}
   function calendarView(){const y=month.getFullYear(),m=month.getMonth();const list=tasks().filter(t=>matches(t));return top('Každý plán má svůj termín.','Kliknutím na den přidáš úkol. Kliknutím na událost otevřeš detail.')+filterBar()+`<div class="section-heading"><div class="calendar-toolbar">${button('‹','prev-month','aria-label="Předchozí měsíc"')}<h2>${new Intl.DateTimeFormat('cs-CZ',{month:'long',year:'numeric'}).format(month)}</h2>${button('›','next-month','aria-label="Další měsíc"')}${button('Dnes','this-month','','button small')}</div>${button('Export .ics ↓','export-ics','','button small')}</div><div class="panel calendar-scroll"><div class="calendar-grid">${['PO','ÚT','ST','ČT','PÁ','SO','NE'].map(d=>`<div class="weekday">${d}</div>`).join('')}${C.calendar(y,m).map(d=>`<div class="cal-day ${d.inside?'':'outside'}"><button class="day-num ${d.day===today()?'today':''}" data-action="day-task" data-day="${d.day}" aria-label="Přidat úkol na ${e(fmt(d.day,{day:'numeric',month:'long',year:'numeric'}))}">${d.number}</button>${list.filter(t=>t.due===d.day).map(t=>`<button class="cal-event ${t.status==='done'?'done':''}" data-action="edit-task" data-id="${e(t.id)}" title="${e(t.title)}"><small>${e(car(t.carId)?.name)}</small>${e(t.title)}</button>`).join('')}</div>`).join('')}</div></div><p style="font-size:11px;margin-top:14px">${list.filter(t=>!t.due&&t.status!=='done').length} otevřených úkolů bez termínu. Export je jednorázový snímek pro import do kalendáře.</p>`;}
   function carDetail(){const c=car(carId);if(!c)return empty('Auto se nepodařilo najít','Vrať se do přehledu aut.','view-cars','Moje auta');const ts=tasks().filter(t=>t.carId===c.id),open=ts.filter(t=>t.status!=='done');return top(c.name,[c.year,c.type,c.plate].filter(Boolean).join(' · '),'edit-car','Upravit auto')+`<div class="car-detail-top"><div class="car-art">${carVisual(c)}</div><div><span class="badge">${c.archived?'Archivované auto':'V mojí garáži'}</span><p style="white-space:pre-wrap;font-size:12px;margin-top:15px">${e(c.description||'Každý detail se hodí. Doplň si poznámku k autu.')}</p><div class="mini-stats"><span><strong>${open.length}</strong> otevřeno</span><span><strong>${ts.filter(t=>t.status==='done').length}</strong> hotovo</span><span><strong>${money(ts.reduce((s,t)=>s+(Number(t.actualCost)||0),0))}</strong> náklady</span></div>${writable()?button('+ Přidat úkol','new-task')+' '+button('+ Fotky','new-photo','','button ghost'):''}</div></div><div class="tabs">${[['tasks','Úkoly a historie'],['notes','Poznámky a odkazy'],['photos','Fotky']].map(([key,label])=>`<button data-action="car-tab" data-tab="${key}" class="${carTab===key?'active':''}">${label}</button>`).join('')}</div>${carTab==='tasks'?taskList(ts,false):carTab==='notes'?`<div class="section-heading"><h2>Poznámky k autu</h2>${writable()?button('+ Přidat','new-note','','button small'):''}</div>`+notesList(data.notes.filter(n=>!n.removed&&n.carId===carId)):photosList(data.files.filter(f=>!f.removed&&f.carId===carId))}`;}
-  function settings(){const cfg=G.config;return top('Tvoje garáž. Tvoje data.','Připoj Google a sdílej práci s lidmi, které si vybereš.')+`<div class="settings-grid"><div><section class="panel"><h3>1. Připojení ke Googlu</h3><p>Propoj aplikaci se svým Google projektem podle přiloženého návodu NASAZENI.md. Tyto hodnoty jsou veřejná konfigurace, žádné heslo.</p><form id="config-form"><label>Google OAuth Client ID<input name="clientId" value="${e(cfg.clientId)}" placeholder="…apps.googleusercontent.com" required></label><div class="form-grid"><label>Google Picker API key<input name="apiKey" value="${e(cfg.apiKey)}" required></label><label>Číslo Google Cloud projektu<input name="projectNumber" value="${e(cfg.projectNumber)}" inputmode="numeric" required></label></div><button class="button" type="submit">Uložit konfiguraci</button></form><div class="stack">${button(mode==='cloud'&&G.ready()?'Změnit Google účet':'Přihlásit přes Google','connect','','button primary')}${mode==='cloud'?button('Odhlásit','logout'):''}</div>${G.profile?`<p style="margin:12px 0 0">Přihlášen: ${e(G.profile.email)}${G.canEdit?' · Úpravy povoleny':' · Nejprve vyber tabulku'}</p>`:''}</section><section class="panel"><h3>2. Společná tabulka</h3><p>Vlastník ji jednou vytvoří. Ostatní vyberou stejnou nasdílenou tabulku přes Google. Výběrem jí povolí přístup pro aplikaci.</p><div class="status-box">${cfg.spreadsheetId?`<a href="https://docs.google.com/spreadsheets/d/${encodeURIComponent(cfg.spreadsheetId)}/edit" target="_blank" rel="noopener noreferrer">Otevřít tabulku ↗</a><br>ID: ${e(cfg.spreadsheetId)}`:'Zatím není vybraná tabulka.'}</div><div class="stack">${button('Vybrat tabulku','pick-sheet')}${button('Vytvořit novou','create-sheet','','button ghost')}</div></section></div><div><section class="panel"><h3>3. Složka pro fotky</h3><p>Můžeš použít svou existující složku. Nasdílej ji stejným lidem jako tabulku. Každý ji při prvním připojení vybere pro aplikaci.</p><div class="status-box">${cfg.folderId?`<a href="https://drive.google.com/drive/folders/${encodeURIComponent(cfg.folderId)}" target="_blank" rel="noopener noreferrer">Otevřít složku ↗</a><br>ID: ${e(cfg.folderId)}`:'Zatím není vybraná složka.'}</div><div class="stack">${button('Vybrat složku','pick-folder')}${button('Vytvořit novou','create-folder','','button ghost')}</div></section><section class="panel"><h3>Kdo má přístup</h3><p>Tabulku i složku v Googlu nastav na <strong>Omezený přístup</strong> a pozvi konkrétní e-maily. Pro práci přiděl roli Editor, pro prohlížení Čtenář. Všichni přizvaní vidí všechna auta.</p><p>Přístup do dat hlídá Google. Samotná stránka na GitHub Pages je veřejná. Účastníci s rolí Editor mohou upravovat i zdrojovou tabulku.</p><p>Termíny jsou celodenní. Aplikace zatím neposílá automatické e-maily ani push upozornění. Kalendář lze jednorázově exportovat do .ics.</p></section><section class="panel"><h3>Záloha a ukázková data</h3><p>Export obsahuje záznamy a odkazy na fotky, nikoli samotné obrázky. Originály zůstávají na Disku. V ukázce se data ukládají pouze v tomto prohlížeči.</p><div class="stack">${button('Export záznamů JSON ↓','export-json')}${button('Vrátit původní ukázku','reset-demo','','button ghost')}</div></section></div></div>`;}
+  function settings(){const cfg=G.config;return top('Tvoje garáž. Tvoje data.','Připoj Google a sdílej práci s lidmi, které si vybereš.')+`<div class="settings-grid"><div><section class="panel"><h3>1. Připojení ke Googlu</h3><p>Propoj aplikaci se svým Google projektem podle přiloženého návodu NASAZENI.md. Tyto hodnoty jsou veřejná konfigurace, žádné heslo.</p><form id="config-form"><label>Google OAuth Client ID<input name="clientId" value="${e(cfg.clientId)}" placeholder="…apps.googleusercontent.com" required></label><div class="form-grid"><label>Google Picker API key<input name="apiKey" value="${e(cfg.apiKey)}" required></label><label>Číslo Google Cloud projektu<input name="projectNumber" value="${e(cfg.projectNumber)}" inputmode="numeric" required></label></div><button class="button" type="submit">Uložit konfiguraci</button></form><div class="stack">${button(mode==='cloud'&&G.ready()?'Změnit Google účet':'Přihlásit přes Google','connect','','button primary')}${mode==='cloud'?button('Odhlásit','logout'):''}</div>${G.profile?`<p style="margin:12px 0 0">Přihlášen: ${e(G.profile.email)}${G.canEdit?' · Úpravy povoleny':' · Nejprve vyber tabulku'}</p>`:''}</section><section class="panel"><h3>2. Společná tabulka</h3><p>Vlastník ji jednou vytvoří. Ostatní vyberou stejnou nasdílenou tabulku přes Google. Výběrem jí povolí přístup pro aplikaci.</p><div class="status-box">${cfg.spreadsheetId?`<a href="https://docs.google.com/spreadsheets/d/${encodeURIComponent(cfg.spreadsheetId)}/edit" target="_blank" rel="noopener noreferrer">Otevřít tabulku ↗</a><br>ID: ${e(cfg.spreadsheetId)}`:'Zatím není vybraná tabulka.'}</div><div class="stack">${button('Vybrat tabulku','pick-sheet')}${button('Vytvořit novou','create-sheet','','button ghost')}</div></section></div><div><section class="panel"><h3>3. Složka pro fotky</h3><p>Můžeš použít svou existující složku. Nasdílej ji stejným lidem jako tabulku. Každý ji při prvním připojení vybere pro aplikaci.</p><div class="status-box">${cfg.folderId?`<a href="https://drive.google.com/drive/folders/${encodeURIComponent(cfg.folderId)}" target="_blank" rel="noopener noreferrer">Otevřít složku ↗</a><br>ID: ${e(cfg.folderId)}`:'Zatím není vybraná složka.'}</div><div class="stack">${button('Vybrat složku','pick-folder')}${button('Vytvořit novou','create-folder','','button ghost')}</div></section>${calendarPanel()}<section class="panel"><h3>Kdo má přístup</h3><p>Tabulku i složku v Googlu nastav na <strong>Omezený přístup</strong> a pozvi konkrétní e-maily. Pro práci přiděl roli Editor, pro prohlížení Čtenář. Všichni přizvaní vidí všechna auta.</p><p>Přístup do dat hlídá Google. Samotná stránka na GitHub Pages je veřejná. Účastníci s rolí Editor mohou upravovat i zdrojovou tabulku.</p><p>Termíny jsou celodenní. Po propojení zajišťuje připomínky Google Kalendář. Samostatné e-maily aplikace neposílá. Kalendář lze také jednorázově exportovat do .ics.</p></section><section class="panel"><h3>Záloha a ukázková data</h3><p>Export obsahuje záznamy a odkazy na fotky, nikoli samotné obrázky. Originály zůstávají na Disku. V ukázce se data ukládají pouze v tomto prohlížeči.</p><div class="stack">${button('Export záznamů JSON ↓','export-json')}${button('Vrátit původní ukázku','reset-demo','','button ghost')}</div></section></div></div>`;}
+  const calendarOwner=()=>calendarBinding?.ownerEmail?.toLowerCase()===G.profile?.email?.toLowerCase();
+  const calendarUrl=id=>'https://calendar.google.com/calendar/u/0/r?cid='+encodeURIComponent(btoa(id));
+  async function refreshCalendarBinding(){
+    calendarConfigError='';
+    if(mode!=='cloud'||!G.ready()||!G.config.spreadsheetId){calendarBinding=null;return;}
+    try{calendarBinding=await G.loadCalendarConfig();}
+    catch(error){calendarBinding=null;calendarConfigError=error.message;}
+  }
+  function paintCalendarStatus(){
+    const node=$('#calendar-sync-status');
+    if(node)node.textContent=calendarState.running?'Synchronizuji s Google Kalendářem…':calendarState.error||calendarState.message||(calendarState.lastSync?'Poslední synchronizace v tomto okně: '+calendarState.lastSync:'Synchronizace ještě neproběhla.');
+    document.querySelectorAll('.calendar-panel button').forEach(b=>b.disabled=calendarState.running||calendarSetupBusy);
+  }
+  function calendarPanel(){
+    const cloud=mode==='cloud'&&G.ready()&&!!G.config.spreadsheetId,b=calendarBinding,owner=calendarOwner(),disabled=calendarState.running||calendarSetupBusy?'disabled':'';
+    let body='';
+    if(!cloud)body='<p>Přihlas se přes Google a připoj společnou tabulku. Ukázkové úkoly se do Google Kalendáře neposílají.</p>'+button('Nastavení připojení →','view-settings','','button small');
+    else if(calendarConfigError)body='<div class="conflict">'+e(calendarConfigError)+'</div>'+button('Zkusit znovu','calendar-refresh',disabled);
+    else if(!b){
+      body='<p>Vytvoř samostatný kalendář <strong>Garáž — opravy a termíny</strong>. Přístup se omezí na kalendáře vytvořené touto aplikací. Soukromé kalendáře nemusíš zpřístupňovat.</p><div class="stack">'+(G.calendarGranted?button('Vytvořit kalendář Garáž','calendar-create',disabled,'button primary'):button('Povolit Google Kalendář','calendar-authorize',disabled,'button primary'))+'</div>'+
+      '<details class="calendar-recovery"><summary>Obnovit propojení po přerušeném vytváření</summary><p>Pokud kalendář už vznikl, jeho ID najdeš v Google Kalendáři → Nastavení → vybraný kalendář → Integrovat kalendář.</p><form id="calendar-recover-form"><label>ID vytvořeného kalendáře<input name="calendarId" required maxlength="1024" placeholder="…@group.calendar.google.com"></label><button class="button small" type="submit">Obnovit propojení</button></form></details>';
+    }else{
+      body='<div class="calendar-binding"><span class="badge '+(b.enabled?'done':'waiting')+'">'+(b.enabled?'Propojeno':'Pozastaveno')+'</span><strong>'+e(b.name||'Garáž — opravy a termíny')+'</strong></div><p>Účet synchronizace: '+e(b.ownerEmail)+'</p>';
+      if(b._conflict)body+='<div class="conflict">Nastavení má souběžné změny. Synchronizace je zastavená; nastavení v listu Kalendar vyžaduje kontrolu.</div>';
+      body+='<div class="stack"><a class="button small" href="'+e(calendarUrl(b.calendarId))+'" target="_blank" rel="noopener noreferrer">Otevřít Google Kalendář ↗</a>';
+      if(owner&&!b._conflict){
+        if(!G.calendarGranted)body+=button('Povolit synchronizaci pro tento účet','calendar-authorize',disabled,'button primary');
+        else body+=button('Synchronizovat teď','calendar-sync',disabled,'button primary')+button(b.enabled?'Pozastavit':'Obnovit synchronizaci','calendar-toggle',disabled,'button ghost');
+      }
+      body+='</div>';
+      if(owner&&!b._conflict)body+='<form id="calendar-options-form" class="calendar-options">'+select('reminder','Připomínka otevřených úkolů',[['1440','Den předem'],['2880','Dva dny předem'],['default','Podle nastavení Google kalendáře'],['none','Bez připomínky']],b.reminder||'1440')+'<button class="button small" type="submit">Uložit připomínku</button></form>';
+      if(!owner)body+='<p>Události aktualizuje uvedený účet při používání Garáže. Tvoje změny úkolů se přenesou, až tento účet spustí synchronizaci. Sdílení kalendáře nastavuje jeho vlastník přímo v Googlu.</p>';
+      body+='<p class="calendar-note">Úkoly měň v Garáži. Změny přímo v Google Kalendáři se nevracejí zpět a při synchronizaci mohou být nahrazené. Dokončené úkoly zůstanou označené jako hotové bez připomínky.</p>';
+    }
+    return '<section class="panel calendar-panel"><div class="section-heading"><h3>Google Kalendář</h3><span class="eyebrow">GARÁŽ → GOOGLE</span></div>'+body+'<p id="calendar-sync-status" class="calendar-status" role="status">'+e(calendarState.error||calendarState.message||'')+'</p><p class="calendar-note">Přenos běží při používání aplikace účtem synchronizace. Po zavření aplikace se nové změny nepřenášejí; už uložené připomínky dál zajišťuje Google. Termíny jsou celodenní, čas připomínek zkontroluj v Google Kalendáři.</p></section>';
+  }
+  async function syncCalendar(manual=false){
+    if(calendarState.running||calendarSetupBusy||busy||uploading)return;
+    if(mode!=='cloud'||!G.ready()||!G.config.spreadsheetId)return;
+    if(!manual&&(!calendarBinding?.enabled||!calendarOwner()||!G.calendarGranted||$('#editor').open))return;
+    calendarState.running=true;calendarState.error='';calendarState.message='Synchronizuji…';paintCalendarStatus();
+    try{
+      await refreshCalendarBinding();
+      if(calendarConfigError)throw new Error(calendarConfigError);
+      if(!calendarBinding?.enabled){calendarState.message='Synchronizace je pozastavená.';return;}
+      if(!calendarOwner())throw new Error('Synchronizaci spouští účet '+calendarBinding.ownerEmail+'.');
+      const fresh=C.reduce(await G.load()),appUrl=location.origin+location.pathname+'#tasks';
+      const r=await H.sync({google:G,core:C,binding:calendarBinding,records:fresh,appUrl});
+      calendarState.lastSync=new Intl.DateTimeFormat('cs-CZ',{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());
+      calendarState.message='Synchronizováno '+calendarState.lastSync+' · Nové: '+r.created+' · Upravené: '+r.updated+' · Odebrané: '+r.removed+' · Beze změny: '+r.unchanged+(r.skipped?' · Přeskočené: '+r.skipped:'');
+      if(r.errors.length)calendarState.error=r.errors.join('\n');
+      if(manual)notify(r.errors.length?'Část událostí se nepodařilo přenést. Podrobnosti najdeš v nastavení kalendáře.':calendarState.message);
+    }catch(error){calendarState.error=error.status===403?'Google Kalendář odmítl přístup. Ověř zapnuté Calendar API a povol kalendář znovu.':error.message;if(manual)notify('Záznamy v tabulce zůstaly uložené. Kalendář: '+calendarState.error);}
+    finally{calendarState.running=false;paintCalendarStatus();}
+  }
+  async function calendarAction(name){
+    if(calendarState.running||calendarSetupBusy)throw new Error('Počkej na dokončení práce s kalendářem.');
+    if(mode!=='cloud'||!G.ready()||!G.config.spreadsheetId)throw new Error('Nejdřív se přihlas ke společné tabulce.');
+    if(name==='calendar-sync'){await syncCalendar(true);return;}
+    calendarSetupBusy=true;paintCalendarStatus();
+    try{
+      if(name==='calendar-refresh')await refreshCalendarBinding();
+      if(name==='calendar-authorize'){await G.authorizeCalendar();await refreshCalendarBinding();calendarState.message='Přístup povolen. '+(calendarBinding?'Kalendář je připravený.':'Teď vytvoř kalendář Garáž.');}
+      if(name==='calendar-create'){
+        if(!G.canEdit)throw new Error('Vytvoření propojení vyžaduje roli Editor v tabulce.');
+        await refreshCalendarBinding();
+        if(calendarConfigError)throw new Error(calendarConfigError);
+        if(calendarBinding)throw new Error('Tabulka už má propojený kalendář. Další nebyl vytvořen.');
+        const binding=await H.create(G);
+        try{calendarBinding=await G.saveCalendarConfig(binding,[]);H.clearPending(G.config.spreadsheetId,G.profile.email);}
+        catch(error){throw new Error('Kalendář vznikl, ale propojení se nepodařilo uložit. Klikni znovu na vytvoření — aplikace použije stejný kalendář. '+error.message);}
+        calendarState.message='Kalendář vytvořený a propojený.';
+      }
+      if(name==='calendar-toggle'){
+        if(!calendarBinding||!calendarOwner())throw new Error('Propojení spravuje účet, který kalendář vytvořil.');
+        calendarBinding=await G.saveCalendarConfig({...calendarBinding,enabled:!calendarBinding.enabled},calendarBinding._heads);
+        calendarState.message=calendarBinding.enabled?'Synchronizace obnovena.':'Synchronizace pozastavená. Existující události zůstaly v Googlu.';
+      }
+    }finally{calendarSetupBusy=false;if(!G.ready()&&!G.profile){setData([]);calendarBinding=null;}render();paintCalendarStatus();}
+    if(calendarBinding?.enabled&&G.calendarGranted&&calendarOwner())await syncCalendar(true);
+  }
   function render(){
     renderVersion++;
     $('#breadcrumb').textContent=view==='car'?car(carId)?.name||labels.car:labels[view];
@@ -99,14 +183,14 @@
     if(view==='overview')html=overview();
     if(view==='cars')html=top('Každé auto má svoje místo.','Od každodenních jízd po projekty, které stojí za to.','new-car','+ Přidat auto')+`<div class="car-grid">${activeCars().map(carCard).join('')}</div>`+(activeCars().length?'':empty('Přidej svoje první auto','Ať má každá oprava a nápad svoje místo.','new-car','+ Přidat auto'))+(data.cars.some(c=>c.archived)?'<h2 style="margin-bottom:18px">Archiv</h2><div class="car-grid">'+data.cars.filter(c=>c.archived).map(carCard).join('')+'</div>':'');
     if(view==='tasks')html=top('Od nápadu k hotové práci.','Co opravit, kdo to zařídí a do kdy.','new-task')+filterBar(true)+taskList();
-    if(view==='calendar')html=calendarView();
+    if(view==='calendar')html=calendarPanel()+calendarView();
     if(view==='notes')html=top('Dobré nápady se neztrácí.','Poznámky, zajímavé stránky i návody z YouTube.','new-note','+ Přidat poznámku')+filterBar()+notesList(data.notes.filter(n=>!n.removed&&matches(n)));
     if(view==='photos')html=top('Všechno důležité i na fotce.','Stav před opravou, drobné detaily i hotová práce.','new-photo','+ Přidat fotky')+filterBar()+photosList(data.files.filter(f=>!f.removed&&matches(f)));
     if(view==='car')html=carDetail();
     if(view==='settings')html=settings();
     $('#main').innerHTML=html;
     $('#theme span').textContent=document.body.classList.contains('dark')?'Světlý vzhled':'Tmavý vzhled';
-    hydratePhotos(renderVersion);
+    hydratePhotos(renderVersion);paintCalendarStatus();
   }
   function navigate(v){view=v;filters={q:'',car:'',status:'open'};location.hash=v==='car'?'car/'+encodeURIComponent(carId):v;render();}
   function field(name,label,value='',type='text',extra=''){return `<label ${extra}>${label}<input name="${name}" type="${type}" value="${e(value)}" ${name==='title'||name==='name'?'required maxlength="150"':''} ${type==='number'?'min="0" step="0.01"':''}></label>`;}
@@ -122,7 +206,7 @@
     $('#dialog-eyebrow').textContent=mode==='demo'?'UKÁZKA · POUZE TENTO PROHLÍŽEČ':'SPOLEČNÁ GARÁŽ';
     let fields=conflictFields(record);
     if(kind==='car')fields+=`<div class="form-grid">${field('name','Název auta',record.name||'','text','class="wide"')}${field('year','Rok výroby',record.year||'','text')}${field('plate','SPZ / poznávací označení',record.plate||'')}${field('type','Typ auta',record.type||'')}${select('style','Ilustrace',[['suv','Osobní auto / SUV'],['pickup','Pick-up'],['rv','Obytné auto']],record.style||'suv')}${select('color','Barva karty',colors.map((c,i)=>[c,['Šalvějová','Písková','Modrošedá','Cihlová','Olivová','Grafitová'][i]]),record.color||colors[0])}${select('archived','Zařazení',[['no','Aktivní garáž'],['yes','Archiv']],record.archived?'yes':'no')}${select('coverFileId','Úvodní fotka',[['','Použít ilustraci'],...data.files.filter(f=>!f.removed&&f.carId===id).map(f=>[f.id,f.title||f.name])],record.coverFileId||'','class="wide"')}<p class="wide" style="font-size:11px">Vlastní fotku nahraješ po uložení auta tlačítkem + Fotky. V galerii ji můžeš nastavit jako úvodní.</p><label class="wide">Poznámka k autu<textarea name="description" maxlength="20000">${e(record.description)}</textarea></label></div>`;
-    if(kind==='task')fields+=`<div class="form-grid">${field('title','Název úkolu',record.title||'','text','class="wide"')}${select('carId','Auto',carsOptions(),record.carId||cId)}${select('kind','Typ práce',Object.entries(kinds),record.kind||'repair')}${field('due','Termín',record.due||day,'date')}${field('owner','Kdo to zařídí',record.owner||'')}${select('status','Stav',Object.entries(status),record.status||'todo')}${select('priority','Priorita',[['normal','Běžná'],['high','Vysoká']],record.priority||'normal')}${field('cost','Odhad nákladů (Kč)',record.cost??'','number')}${field('actualCost','Skutečné náklady (Kč)',record.actualCost??'','number')}<label class="wide">Co je potřeba a další podrobnosti<textarea name="description" maxlength="20000">${e(record.description)}</textarea></label></div>`+(id?`<div class="stack">${button('Přidat fotky k úkolu','task-photo',`data-id="${e(id)}"`,'button small')}${button('Odstranit úkol','remove-task',`data-id="${e(id)}"`,'button ghost danger')}</div>`:'');
+    if(kind==='task')fields+=`<div class="form-grid">${field('title','Název úkolu',record.title||'','text','class="wide"')}${select('carId','Auto',carsOptions(),record.carId||cId)}${select('kind','Typ práce',Object.entries(kinds),record.kind||'repair')}${field('due','Termín',record.due||day,'date')}${field('owner','Kdo to zařídí',record.owner||'')}${select('status','Stav',Object.entries(status),record.status||'todo')}${select('priority','Priorita',[['normal','Běžná'],['high','Vysoká']],record.priority||'normal')}${field('cost','Odhad nákladů (Kč)',record.cost??'','number')}${field('actualCost','Skutečné náklady (Kč)',record.actualCost??'','number')}<label class="wide">Co je potřeba a další podrobnosti<textarea name="description" maxlength="20000">${e(record.description)}</textarea></label><label class="wide checkbox-label"><input type="checkbox" name="calendarSync" ${record.calendarSync===false?'':'checked'}> Zobrazovat v Google Kalendáři, pokud má úkol termín</label></div>`+(id?`<div class="stack">${button('Přidat fotky k úkolu','task-photo',`data-id="${e(id)}"`,'button small')}${button('Odstranit úkol','remove-task',`data-id="${e(id)}"`,'button ghost danger')}</div>`:'');
     if(kind==='note')fields+=`<div class="form-grid">${field('title','Nadpis',record.title||'','text','class="wide"')}${select('carId','K jakému autu',carsOptions(true),record.carId??(view==='car'?carId:''))}${select('kind','Co ukládáš',[['note','Poznámka'],['link','Odkaz / video']],record.kind||'note')}${field('url','Odkaz na web / YouTube',record.url||'','url','class="wide"')}<label class="wide">Poznámka<textarea name="body" maxlength="20000">${e(record.body)}</textarea></label></div>`+(id?button('Odstranit poznámku','remove-note',`data-id="${e(id)}"`,'button ghost danger'):'');
     if(kind==='photo')fields+=select('carId','Auto',carsOptions(),record.carId||cId)+select('taskId','Ke konkrétnímu úkolu',[['','Jen k autu'],...tasks().filter(t=>t.carId===(record.carId||cId)).map(t=>[t.id,t.title])],'')+`<label>Popis fotek (nepovinný)<input name="title" maxlength="150"></label><label>Vybrat fotky<input type="file" name="photos" accept="image/jpeg,image/png,image/webp" multiple required><small>JPG, PNG nebo WebP. Nejvýše 12 MB na fotku a 8 fotek najednou. Ukládají se originály. HEIC nejdřív převeď do JPG.</small></label><label class="checkbox-label"><input type="checkbox" name="useCover" ${car(record.carId||cId)?.coverFileId?'':'checked'}> Použít první nahranou fotku jako úvodní fotografii auta</label>`;
     $('#form-fields').innerHTML=fields;$('#save-button').disabled=false;$('#save-button').textContent=kind==='photo'?'Nahrát fotky':'Uložit';
@@ -140,7 +224,7 @@
       if(current.kind==='photo'){uploading=true;try{await uploadPhotos(values,ev.target.elements.photos.files);}finally{uploading=false;}closeEditor();render();notify('Fotky jsou uložené.');return;}
       const r={...C.clean(current.record),...values};delete r.resolveConflict;
       if(current.kind==='car'){r.name=r.name.trim();if(!r.name)throw new Error('Napiš název auta.');r.archived=r.archived==='yes';}
-      if(current.kind==='task'){r.title=r.title.trim();if(!r.title)throw new Error('Napiš název úkolu.');r.completedAt=r.status==='done'?(current.record.status==='done'?current.record.completedAt||today():today()):'';}
+      if(current.kind==='task'){r.calendarSync=values.calendarSync==='on';r.title=r.title.trim();if(!r.title)throw new Error('Napiš název úkolu.');r.completedAt=r.status==='done'?(current.record.status==='done'?current.record.completedAt||today():today()):'';}
       if(current.kind==='note'){r.title=r.title.trim();if(!r.title)throw new Error('Napiš nadpis.');if(r.url&&!C.url(r.url))throw new Error('Odkaz musí začínat https:// nebo http://.');if(r.kind==='link'&&!r.url)throw new Error('K odkazu doplň webovou adresu.');}
       await write(current.entity,current.id,r,current.parents);closeEditor();render();notify(mode==='cloud'?'Uloženo do Googlu.':'Uloženo v ukázce v tomto prohlížeči.');
     }catch(error){notify(error.message);}
@@ -172,12 +256,14 @@
   function download(name,content,type){const u=URL.createObjectURL(new Blob([content],{type})),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
   async function connect(){
     if(busy)return;
-    const p=await G.connect();mode='cloud';clearPhotos();setData([]);view='settings';lastSync='';render();
-    if(G.config.spreadsheetId){try{await loadCloud();view='overview';}catch(error){notify(error.message);}}
-    render();notify('Přihlášeno jako '+p.email+'. '+(G.config.spreadsheetId?'':'Vyber nebo vytvoř společnou tabulku.'));
+    const p=await G.connect();calendarBinding=null;calendarConfigError='';calendarState.error='';calendarState.message='';mode='cloud';clearPhotos();setData([]);view='settings';lastSync='';render();
+    if(G.config.spreadsheetId){try{await loadCloud();await refreshCalendarBinding();view='overview';}catch(error){notify(error.message);}}
+    setTimeout(()=>syncCalendar(false),800);render();notify('Přihlášeno jako '+p.email+'. '+(G.config.spreadsheetId?'':'Vyber nebo vytvoř společnou tabulku.'));
   }
   async function action(name,target){
     const id=target?.dataset.id;
+    if(name.startsWith('calendar-')){await calendarAction(name);return;}
+    if((calendarState.running||calendarSetupBusy)&&['connect','logout','pick-sheet','create-sheet'].includes(name))throw new Error('Počkej na dokončení synchronizace kalendáře.');
     if(name.startsWith('view-')){navigate(name.slice(5));return;}
     if(name==='use-cover'){
       if(!writable())throw new Error('Pro úpravy potřebuješ přihlášení a roli Editor.');
@@ -200,14 +286,14 @@
     if(name==='export-json'){download('garaz-zaznamy-'+today()+'.json',JSON.stringify({version:1,exportedAt:new Date().toISOString(),mode,events},null,2),'application/json');return;}
     if(name==='open-photo'){const f=data.files.find(f=>f.id===id);const blob=await localPhoto(f.id);if(!blob)throw new Error('Fotka není dostupná.');download(f.name,blob,f.mime);return;}
     if(name==='connect'){await connect();return;}
-    if(name==='logout'){G.logout();clearPhotos();mode='demo';try{setData(JSON.parse(localStorage.getItem(prefix)||'null')||seed());}catch{setData(seed());}navigate('settings');return;}
+    if(name==='logout'){G.logout();calendarBinding=null;calendarState.message='';calendarState.error='';clearPhotos();mode='demo';try{setData(JSON.parse(localStorage.getItem(prefix)||'null')||seed());}catch{setData(seed());}navigate('settings');return;}
     if(name==='pick-sheet'||name==='create-sheet'||name==='pick-folder'||name==='create-folder'){
       if(mode!=='cloud'||!G.ready())throw new Error('Nejdřív se přihlas přes Google.');
       if(name==='create-sheet'&&G.config.spreadsheetId&&!confirm('Vytvořit další prázdnou tabulku a přepnout na ni? Stávající zůstane beze změny.'))return;
       let result;
       if(name==='pick-sheet')result=await G.pick('sheet');if(name==='pick-folder')result=await G.pick('folder');if(name==='create-sheet')result=await G.createSheet();if(name==='create-folder')result=await G.createFolder();
       if(!result)return;
-      if(name.includes('sheet')){clearPhotos();setData([]);await loadCloud();}
+      if(name.includes('sheet')){clearPhotos();setData([]);calendarBinding=null;await loadCloud();await refreshCalendarBinding();}
       render();notify(name.startsWith('create')?'Vytvořeno. Nezapomeň soubor v Googlu nasdílet svým lidem.':'Výběr uložen.');return;
     }
     if(name==='reset-demo'){if(!confirm('Vrátit ukázkové záznamy do výchozího stavu? Data v Googlu zůstanou beze změny.'))return;const rows=seed();localStorage.setItem(prefix,JSON.stringify(rows));if(mode==='demo'){setData(rows);clearPhotos();render();}notify('Ukázka je připravená znovu.');}
@@ -217,16 +303,37 @@
   document.addEventListener('keydown',ev=>{if((ev.key==='Enter'||ev.key===' ')&&ev.target.matches('.car-card')){ev.preventDefault();action('open-car',ev.target).catch(err=>notify(err.message));}});
   document.addEventListener('change',ev=>{if(ev.target.id==='filter-car'){filters.car=ev.target.value;render();}if(ev.target.id==='filter-status'){filters.status=ev.target.value;render();}if(edit?.kind==='photo'&&ev.target.name==='carId')updatePhotoTasks(ev.target.value);});
   document.addEventListener('input',ev=>{if(ev.target.id==='search'){filters.q=ev.target.value;const pos=ev.target.selectionStart;render();$('#search')?.focus();$('#search')?.setSelectionRange(pos,pos);}});
-  document.addEventListener('submit',ev=>{if(ev.target.id!=='config-form')return;ev.preventDefault();const f=Object.fromEntries(new FormData(ev.target));for(const k of Object.keys(f))f[k]=f[k].trim();if(!f.clientId.endsWith('.apps.googleusercontent.com')||!/^\d+$/.test(f.projectNumber)){notify('Zkontroluj Client ID a číselné číslo projektu.');return;}const old=G.config;G.persist(f);if(mode==='cloud'&&(old.clientId!==f.clientId||old.projectNumber!==f.projectNumber)){G.logout();mode='demo';clearPhotos();try{setData(JSON.parse(localStorage.getItem(prefix)||'null')||seed());}catch{setData(seed());}}render();notify('Konfigurace uložená pro tento prohlížeč. Pro ostatní ji vlož také do config.js.');});
+  document.addEventListener('submit',async ev=>{
+    if(!['calendar-options-form','calendar-recover-form'].includes(ev.target.id))return;
+    ev.preventDefault();if(calendarState.running||calendarSetupBusy){notify('Počkej na dokončení synchronizace.');return;}
+    if(mode!=='cloud'||!G.ready()){notify('Nejdřív se přihlas přes Google.');return;}
+    const values=Object.fromEntries(new FormData(ev.target));calendarSetupBusy=true;paintCalendarStatus();
+    try{
+      if(ev.target.id==='calendar-options-form'){
+        if(!calendarBinding||!calendarOwner()||calendarBinding._conflict)throw new Error('Připomínky nastavuje účet, který kalendář propojil.');
+        if(!['default','none','1440','2880'].includes(values.reminder))throw new Error('Vyber platnou připomínku.');
+        calendarBinding=await G.saveCalendarConfig({...calendarBinding,reminder:values.reminder},calendarBinding._heads);
+      }else{
+        await refreshCalendarBinding();if(calendarConfigError)throw new Error(calendarConfigError);
+        if(calendarBinding)throw new Error('Tabulka už kalendář má. Existující propojení nebylo změněno.');
+        const binding=await H.recover(G,values.calendarId.trim());calendarBinding=await G.saveCalendarConfig(binding,[]);H.clearPending(G.config.spreadsheetId,G.profile.email);
+      }
+      calendarState.message='Nastavení kalendáře je uložené ve společné tabulce.';
+    }catch(error){notify(error.message);}
+    finally{calendarSetupBusy=false;render();paintCalendarStatus();}
+    if(calendarBinding?.enabled&&G.calendarGranted&&calendarOwner())await syncCalendar(true);
+  });
+  document.addEventListener('submit',ev=>{if(ev.target.id!=='config-form')return;ev.preventDefault();if(calendarState.running||calendarSetupBusy){notify('Počkej na dokončení synchronizace.');return;}const f=Object.fromEntries(new FormData(ev.target));for(const k of Object.keys(f))f[k]=f[k].trim();if(!f.clientId.endsWith('.apps.googleusercontent.com')||!/^\d+$/.test(f.projectNumber)){notify('Zkontroluj Client ID a číselné číslo projektu.');return;}const old=G.config;G.persist(f);if(mode==='cloud'&&(old.clientId!==f.clientId||old.projectNumber!==f.projectNumber)){G.logout();mode='demo';clearPhotos();try{setData(JSON.parse(localStorage.getItem(prefix)||'null')||seed());}catch{setData(seed());}}render();notify('Konfigurace uložená pro tento prohlížeč. Pro ostatní ji vlož také do config.js.');});
   $('#editor-form').addEventListener('submit',saveEditor);
   $('#close-dialog').addEventListener('click',closeEditor);$('#cancel-dialog').addEventListener('click',closeEditor);
   $('#editor').addEventListener('cancel',ev=>{if(busy||uploading)ev.preventDefault();else edit=null;});
   $('#theme').addEventListener('click',()=>{document.body.classList.toggle('dark');localStorage.setItem('garaz.theme',document.body.classList.contains('dark')?'dark':'light');render();});
   $('#account').addEventListener('click',()=>navigate('settings'));
-  $('#sync').addEventListener('click',async()=>{try{if(mode==='cloud'){if(!G.ready()){await connect();return;}await loadCloud();render();notify('Data jsou aktuální.');}else notify('Používáš místní ukázku. Společná data připojíš v Nastavení.');}catch(err){notify(err.message);}});
+  $('#sync').addEventListener('click',async()=>{try{if(mode==='cloud'){if(!G.ready()){await connect();return;}await loadCloud();await refreshCalendarBinding();render();await syncCalendar(false);notify('Data jsou aktuální.');}else notify('Používáš místní ukázku. Společná data připojíš v Nastavení.');}catch(err){notify(err.message);}});
   window.addEventListener('storage',ev=>{if(ev.key===prefix&&mode==='demo'&&!busy){try{setData(JSON.parse(ev.newValue)||seed());render();}catch{}}});
   window.addEventListener('hashchange',()=>{const hash=location.hash.slice(1);if(hash.startsWith('car/')){carId=decodeURIComponent(hash.slice(4));view='car';}else if(labels[hash])view=hash;render();});
-  window.addEventListener('beforeunload',ev=>{if(busy||uploading){ev.preventDefault();ev.returnValue='';}});
+  window.addEventListener('beforeunload',ev=>{if(busy||uploading||calendarState.running||calendarSetupBusy){ev.preventDefault();ev.returnValue='';}});
   const initial=location.hash.slice(1);if(labels[initial])view=initial;else if(initial.startsWith('car/')){carId=decodeURIComponent(initial.slice(4));view='car';}
+  setInterval(()=>{if(document.visibilityState==='visible'&&!$('#editor').open)syncCalendar(false);},60000);
   render();
 })();

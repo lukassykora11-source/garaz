@@ -1,30 +1,15 @@
-# Garáž — kompletní složka pro GitHub
+# Aktualizace Garáže — Google Kalendář
 
-Toto je aktuální verze včetně přidávání aut a úvodní fotografie každého auta.
+Nahraj obsah složky garaz-kalendar do kořene svého existujícího repozitáře garaz a potvrď Commit changes.
 
-## Co nahrát na GitHub
+Vlastní config.js ponech beze změny. V ZIPu záměrně není; neztratí se tak API klíč ani ID existující tabulky a složky.
 
-Rozbal ZIP, otevři složku `garaz` a nahraj její obsah do kořene svého repozitáře. Pokud tam máš předchozí samostatný index.html, nahraď ho tímto index.html a přidej ostatní soubory současně.
+Nový soubor calendar.js musí být nahraný současně s index.html, google.js a app.js. Celé HTML/CSS/JS z této aktualizace patří k sobě. Není potřeba vytvářet nový repozitář ani novou evidenci aut.
 
-- index.html — hlavní stránka; v tomto balíčku používá soubory níže.
-- style.css — vzhled a mobilní rozložení.
-- app.js — ovládání aplikace, auta, úkoly, poznámky a fotografie.
-- core.js — kalendář, termíny, historie změn a export ICS.
-- google.js — přihlášení a ukládání do Google Sheets a Disku.
-- config.js — veřejná konfigurace tvého Google projektu.
-- icon.svg — ikona aplikace.
-- .nojekyll — soubor pro GitHub Pages.
-- NASAZENI.md — podrobný návod.
-- garaz.html — alternativní samostatná verze; pro provoz složkové verze ji nepotřebuješ, otevírej index.html.
+Dále otevři NASAZENI-KALENDAR.md. V Google Cloud povol rozsah calendar.app.created a v aplikaci zvol Nastavení → Google Kalendář → Povolit Google Kalendář → Vytvořit kalendář Garáž.
 
-V GitHub Settings → Pages nastav větev main a složku / (root). Hlavní index.html má být přímo v tomto kořeni, ne v další podsložce garaz.
+Přenos probíhá jednosměrně z aplikace do samostatného Google kalendáře. Dokončené úkoly zůstávají jako historie bez připomínky. Synchronizuje účet vlastníka propojení při používání aplikace. Nový přenos při zavřené aplikaci neběží; již nastavené připomínky dále zajišťuje Google.
 
-## Úvodní fotka auta
+Data a fotografie v Googlu se touto aktualizací nepřepisují. Nové nastavení se uloží do samostatného listu Kalendar v existující tabulce.
 
-Přidej auto, otevři jeho detail a zvol + Fotky. Při nahrávání můžeš zaškrtnout použití první fotografie jako úvodní. U již uložené fotky v galerii zvol Použít jako úvodní. V Upravit auto můžeš vybrat jinou fotku nebo se vrátit k ilustraci.
-
-## Před ostrým používáním
-
-Google zatím není nakonfigurovaný. Doplň config.js podle NASAZENI.md, přihlas se, vytvoř nebo vyber společnou tabulku a složku a ověř uložení jednoho auta a fotky. Dokud svítí Ukázkový režim, data se ukládají pouze do prohlížeče. Ukázková data se do nové tabulky nepřenášejí.
-
-Přímé propojení s Google Kalendářem v tomto balíčku zatím není; k dispozici je kalendář aplikace a jednorázový export ICS.
+Pokud se během povolování objeví nečekaná chyba nebo varování Googlu, pošli screenshot bez klíčů a přístup nerozšiřuj na všechny kalendáře.
