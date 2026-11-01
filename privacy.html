@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ochrana údajů — Garaz / DC RUST GARAGE</title>
+<meta name="description" content="Jak aplikace Garaz (DC RUST GARAGE) používá údaje, Google Disk, Tabulky a Kalendář.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+:root{color-scheme:light;font-family:system-ui,sans-serif;color:#2c302d;background:#f5f4f0;line-height:1.65}body{margin:0;padding:28px 20px}main{max-width:790px;margin:auto;background:white;padding:clamp(24px,5vw,52px);border-radius:20px}a{color:#b33c29;overflow-wrap:anywhere}h1{font-size:clamp(28px,5vw,40px);line-height:1.2;margin:20px 0}h2{font-size:21px;margin:30px 0 10px}p,ul{margin:10px 0}.muted{color:#666d67;font-size:14px}.brand{font-size:14px;font-weight:750;letter-spacing:.08em}footer{margin-top:36px;padding-top:20px;border-top:1px solid #e6e7e2}li{margin:7px 0}
+</style>
+</head>
+<body><main>
+<a href="index.html">← Zpět do aplikace</a>
+<p class="brand">DC RUST GARAGE</p>
+<h1>Zásady ochrany údajů</h1>
+<p class="muted">Aplikace Garaz · poslední aktualizace 1. listopadu 2026</p>
+<p>Garaz, v rozhraní označená také jako DC RUST GARAGE, slouží k evidenci aut, oprav, termínů, poznámek, webových odkazů, fotografií a dokumentů. Umožňuje spolupráci lidí, kterým vlastník nasdílí příslušné soubory v Googlu.</p>
+<h2>1. Provozovatel a kontakt</h2>
+<p>Provozovatelem aplikace je Lukáš Sýkora. S dotazy k údajům, přístupu nebo žádostí o jejich odstranění pište na <a href="mailto:lukas.sykora11@gmail.com">lukas.sykora11@gmail.com</a>.</p>
+<h2>2. Jaké údaje aplikace používá a proč</h2>
+<ul>
+<li><strong>Účet Google:</strong> po vašem přihlášení načte základní profil, identifikátor účtu a e-mail. Slouží k rozpoznání přihlášeného člověka, označení autora změn a kontrole účtu, který připojil kalendář.</li>
+<li><strong>Evidence garáže:</strong> zadané údaje o autech, SPZ, motoru, barvě, opravách, nákladech, termínech, odpovědných osobách, poznámkách a odkazech slouží pouze k vedení společné evidence.</li>
+<li><strong>Přílohy:</strong> vybrané fotografie a dokumenty, názvy souborů a jejich vazby na auta nebo úkoly slouží k dokumentaci oprav. Nové podporované fotografie aplikace před nahráním zpravidla zmenší a převede na JPEG; původní soubor v telefonu nebo počítači nemění. Dokumenty ukládá beze změny.</li>
+<li><strong>Kalendář:</strong> pokud jej připojíte, aplikace vytváří a upravuje události z vybraných úkolů ve zvláštním kalendáři vytvořeném aplikací. Události mohou obsahovat název auta a úkolu, popis, termín a nastavení připomínek.</li>
+</ul>
+<h2>3. Rozsah přístupu ke Googlu</h2>
+<p>Přihlášení a souhlas zajišťuje Google. Aplikace nežádá vaše heslo a neukládá jej. Používá oprávnění <code>drive.file</code> pro soubory vytvořené aplikací nebo soubory, které jste jí zpřístupnili výběrem, a základní profilová oprávnění. Nežádá plošný přístup ke všem souborům na vašem Disku.</p>
+<p>Volitelné oprávnění <code>calendar.app.created</code> se vztahuje na vedlejší kalendáře vytvořené aplikací; aplikace nežádá přístup k vašemu hlavnímu kalendáři. Přístup k jednotlivým sdíleným datům nadále řídí oprávnění vašeho účtu u Googlu.</p>
+<h2>4. Kde se údaje ukládají a kdo k nim má přístup</h2>
+<p>Evidence a historie změn se ukládají do zvolené Google tabulky, přílohy do zvolené složky na Google Disku a události do propojeného Google Kalendáře. Přenos probíhá přímo mezi prohlížečem a službami Google přes HTTPS. Aplikace nemá vlastní serverovou databázi uživatelských záznamů.</p>
+<p>Uživatelé s přístupem ke společné tabulce mohou vidět všechna evidovaná auta. Editoři mohou upravovat i zdrojovou tabulku. Sdílení tabulky, složky a kalendáře se nastavuje zvlášť u Googlu. Veřejná adresa aplikace sama o sobě neuděluje přístup k soukromým souborům.</p>
+<p>Webové soubory aplikace hostuje GitHub Pages. Přihlášení, výběr souborů, ukládání a kalendář zajišťuje Google; vzhled aplikace používá také Google Fonts. Tito poskytovatelé při poskytování svých služeb mohou zpracovávat technické údaje o spojení, například IP adresu a údaje o prohlížeči, podle vlastních pravidel: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub</a> a <a href="https://policies.google.com/privacy">Google</a>.</p>
+<h2>5. Místní úložiště a zapamatování přihlášení</h2>
+<p>Prohlížeč uchovává konfiguraci připojení, volbu vzhledu, místní ukázková data a případně jejich přílohy. Může uchovávat také dočasný záznam o rozpracovaném připojení kalendáře. Ukázková data se automaticky nepřenášejí do společné evidence.</p>
+<p>Ve výchozím stavu je krátkodobý přístupový token Google jen v paměti otevřené stránky. Zapnete-li „Pamatovat přihlášení na tomto zařízení“, uloží se do místního úložiště prohlížeče do původní platnosti, nejdéle přibližně hodinu od přihlášení. Tato volba je určena pro vlastní zařízení. Aplikace neukládá obnovovací token. Odhlášení nebo vypnutí volby uložený přístup odstraní; neodstraní však evidenci uloženou na Disku.</p>
+<h2>6. Další použití údajů</h2>
+<p>Aplikace nepoužívá reklamní ani analytické sledovací nástroje. Provozovatel údaje získané přes Google API neprodává, nepoužívá k reklamnímu profilování ani k trénování obecných modelů umělé inteligence. Zpracování slouží k funkcím evidence a synchronizace popsaným výše a ke sdílení s osobami, kterým vlastník udělil přístup.</p>
+<p>Použití informací získaných z Google API a jejich předávání dalším aplikacím se řídí <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, včetně požadavků Limited Use.</p>
+<h2>7. Uchování, export a odstranění</h2>
+<p>Záznamy zůstávají ve zvolených službách Google, dokud je vlastník nebo oprávněný uživatel neodstraní. Evidence má historii změn: odstranění úkolu nebo poznámky v aplikaci může záznam pouze skrýt a starší verze zůstávají ve zdrojové tabulce. Odstranění záznamu nesmaže automaticky jeho přílohy ani další kopie.</p>
+<p>Záznamy lze exportovat tlačítkem Export záznamů JSON. Export obsahuje údaje a odkazy na přílohy, nikoli samotné fotografie a dokumenty. Pro úplné odstranění či export včetně příloh a historie kontaktujte provozovatele nebo vlastníka sdílených souborů. Ten musí zohlednit i události v kalendáři a případné zálohy, koš či historii verzí spravovanou poskytovatelem.</p>
+<p>Přístup aplikace lze odvolat v <a href="https://myaccount.google.com/connections">nastavení připojení vašeho účtu Google</a>. Tím se nesmažou již vytvořené soubory ani události. Místní ukázková data a nastavení lze odstranit vymazáním dat tohoto webu v prohlížeči; tím se nemažou společná data v Googlu.</p>
+<h2>8. Změny těchto zásad</h2>
+<p>Při změně práce s údaji budou tyto zásady aktualizovány na stejné adrese s novým datem. Aktuální znění je veřejně dostupné bez přihlášení přes odkaz v zápatí aplikace.</p>
+<footer><a href="index.html">Otevřít Garáž</a> · <a href="mailto:lukas.sykora11@gmail.com">Kontakt</a></footer>
+</main></body></html>
