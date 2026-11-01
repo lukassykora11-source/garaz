@@ -1,8 +1,39 @@
-/* Google is the permission boundary: this application never stores a password or a token. */
+/* Google enforces file access. Optional device memory stores only a short-lived access token, never a password or refresh token. */
 window.GarazGoogle = (() => {
   const key = 'garaz.settings.v1:' + location.pathname;
   let saved={}; try { saved=JSON.parse(localStorage.getItem(key)||'{}'); } catch {}
   let config={...(window.GARAZ_CONFIG||{}),...saved}, token='', expires=0, profile=null, calendarGranted=false;
+  const sessionKey='garaz.session.v1:'+location.pathname, rememberKey='garaz.remember.v1:'+location.pathname;
+  let remember=false;
+  try{remember=localStorage.getItem(rememberKey)==='yes';}catch{}
+  function forgetSession(){try{localStorage.removeItem(sessionKey);}catch{}}
+  function storedSession(){
+    try{
+      if(!remember){forgetSession();return null;}
+      const value=JSON.parse(localStorage.getItem(sessionKey)||'null');
+      if(!value)return null;
+      if(value.clientId!==config.clientId||typeof value.token!=='string'||!value.token||!Number.isFinite(value.expires)||value.expires<=Date.now()||value.expires>Date.now()+3600000){forgetSession();return null;}
+      return value;
+    }catch{forgetSession();return null;}
+  }
+  function saveSession(){
+    if(!remember||!ready()||!profile){forgetSession();return;}
+    try{localStorage.setItem(sessionKey,JSON.stringify({clientId:config.clientId,token,expires,calendarGranted}));}
+    catch{forgetSession();throw new Error('Prohlížeč nepovolil zapamatování přihlášení. Aktuální přihlášení dál funguje.');}
+  }
+  function setRemember(value){
+    const enabled=!!value;
+    try{localStorage.setItem(rememberKey,enabled?'yes':'no');}
+    catch{throw new Error('Prohlížeč nepovolil uložení této volby.');}
+    remember=enabled;
+    saveSession();
+  }
+  async function resume(){
+    const value=storedSession();if(!value)return null;
+    token=value.token;expires=value.expires;calendarGranted=value.calendarGranted===true;
+    try{profile=await request('https://www.googleapis.com/oauth2/v3/userinfo');return profile;}
+    catch(error){logout();throw error;}
+  }
   const BASE_SCOPES='https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile';
   const CALENDAR_SCOPE='https://www.googleapis.com/auth/calendar.app.created';
   const headers=['event_id','entity','record_id','parents_json','at','author','data_json'];
@@ -15,27 +46,29 @@ window.GarazGoogle = (() => {
   }
   async function connect(withCalendar=false) {
     if(!config.clientId) throw new Error('Nejdřív v Nastavení vyplň Google Client ID, API key a číslo projektu.');
+    if(!withCalendar)logout();
     await script('https://accounts.google.com/gsi/client');
     const response=await new Promise((resolve,reject)=>{
       const client=google.accounts.oauth2.initTokenClient({client_id:config.clientId,scope:BASE_SCOPES+(withCalendar?' '+CALENDAR_SCOPE:''),include_granted_scopes:true,...(withCalendar&&profile?.email?{hint:profile.email}:{}),callback:r=>r.error?reject(new Error(r.error_description||r.error)):resolve(r),error_callback:()=>reject(new Error('Přihlášení nebylo dokončeno. Povol přihlašovací okno a zkus to znovu.'))});
       client.requestAccessToken({prompt:withCalendar?'':'select_account'});
     });
     if(!google.accounts.oauth2.hasGrantedAllScopes(response,'https://www.googleapis.com/auth/drive.file')) throw new Error('Pro práci s daty je potřeba povolit přístup k vybraným souborům.');
-    token=response.access_token;expires=Date.now()+Number(response.expires_in)*1000-30000;
+    token=response.access_token;expires=Date.now()+Math.min(Number(response.expires_in)||0,3600)*1000-30000;
     calendarGranted=google.accounts.oauth2.hasGrantedAllScopes(response,CALENDAR_SCOPE);
     try{profile=await request('https://www.googleapis.com/oauth2/v3/userinfo');}
     catch(error){logout();throw error;}
+    saveSession();
     return profile;
   }
   function ready() { return !!token && Date.now()<expires; }
   async function request(url,options={}) {
-    if(!ready()) { token='';throw new Error('Přihlášení vypršelo. Přihlas se znovu přes Google; otevřený formulář můžeš zkopírovat před zavřením.'); }
+    if(!ready()) { logout();throw new Error('Přihlášení vypršelo. Přihlas se znovu přes Google; otevřený formulář můžeš zkopírovat před zavřením.'); }
     const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),45000);
     let r;
     try {r=await fetch(url,{...options,headers:{Authorization:'Bearer '+token,...options.headers},signal:controller.signal});}
     catch(e){throw new Error(e.name==='AbortError'?'Google neodpověděl včas. Obnov data a ověř, zda se změna uložila.':'Spojení s Googlem selhalo. Obnov data a ověř poslední změnu.');}
     finally {clearTimeout(timer);}
-    if(!r.ok){let error={};try{error=await r.json();}catch{}let message=error.error?.message||'Google vrátil chybu '+r.status;if(r.status===401){token='';message='Přihlášení vypršelo. Přihlas se znovu.';}else if((r.status===403||r.status===404)&&!url.startsWith('https://www.googleapis.com/calendar/'))message='K souboru chybí oprávnění, výběr pro aplikaci nebo zapnuté API. V Nastavení jej vyber přes Google a ověř sdílení. ('+r.status+')';const failure=new Error(message);failure.status=r.status;failure.reasons=error.error?.errors||[];throw failure;}
+    if(!r.ok){let error={};try{error=await r.json();}catch{}let message=error.error?.message||'Google vrátil chybu '+r.status;if(r.status===401){logout();message='Přihlášení vypršelo. Přihlas se znovu.';}else if((r.status===403||r.status===404)&&!url.startsWith('https://www.googleapis.com/calendar/'))message='K souboru chybí oprávnění, výběr pro aplikaci nebo zapnuté API. V Nastavení jej vyber přes Google a ověř sdílení. ('+r.status+')';const failure=new Error(message);failure.status=r.status;failure.reasons=error.error?.errors||[];throw failure;}
     if(r.status===204)return {};
     return options.blob?r.blob():r.json();
   }
@@ -146,6 +179,6 @@ window.GarazGoogle = (() => {
     await request(sheetBase()+'/values/'+encodeURIComponent('Kalendar!A:A')+':append?valueInputOption=RAW&insertDataOption=INSERT_ROWS',json('POST',{values:[[JSON.stringify(payload)]]}));
     return {...payload,_heads:[revision],_conflict:false};
   }
-  function logout(){token='';expires=0;profile=null;calendarGranted=false;capabilities={canEdit:false};}
-  return {connect,ready,load,append,pick,createSheet,createFolder,upload,photo,persist,logout,authorizeCalendar,calendarApi,loadCalendarConfig,saveCalendarConfig,get calendarGranted(){return calendarGranted&&ready();},get config(){return {...config};},get profile(){return profile;},get canEdit(){return !!capabilities.canEdit;}};
+  function logout(){forgetSession();token='';expires=0;profile=null;calendarGranted=false;capabilities={canEdit:false};}
+  return {connect,resume,setRemember,get remember(){return remember;},hasRememberedSession:()=>!!storedSession(),ready,load,append,pick,createSheet,createFolder,upload,photo,persist,logout,authorizeCalendar,calendarApi,loadCalendarConfig,saveCalendarConfig,get calendarGranted(){return calendarGranted&&ready();},get config(){return {...config};},get profile(){return profile;},get canEdit(){return !!capabilities.canEdit;}};
 })();

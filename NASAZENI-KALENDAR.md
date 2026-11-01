@@ -101,3 +101,13 @@ Prošly automatické kontroly syntaxe a simulované testy vytvoření, opakovan�
 - [Vytváření událostí a ID](https://developers.google.com/workspace/calendar/api/v3/reference/events/insert)
 - [Úpravy událostí](https://developers.google.com/workspace/calendar/api/v3/reference/events/patch)
 - [Připomínky](https://developers.google.com/workspace/calendar/api/concepts/reminders)
+
+
+## Zapamatování přihlášení na vlastním zařízení
+V Nastavení zapni „Pamatovat přihlášení na tomto zařízení“ a přihlas se přes Google (lze zapnout i během platného přihlášení). Při návratu se platný přístup automaticky obnoví a znovu se načtou data i oprávnění z Googlu.
+
+Volba je standardně vypnutá. Po zapnutí aplikace ukládá krátkodobý přístupový token do místního úložiště prohlížeče; neukládá heslo ani obnovovací token. Token neprodlužuje, ukládá jej nejdéle asi na hodinu od přihlášení, podle platnosti dané Googlem. Po vypršení je potřeba obnovit přístup tlačítkem Google. Odhlášení nebo vypnutí volby uložený přístup odstraní. Na sdíleném zařízení volbu nezapínej. Několikadenní přihlášení vyžaduje serverovou část.
+
+Nahraj index.html, google.js a app.js; můžeš nahrát i všechny ostatní soubory z balíčku. Svůj config.js zachovej. Tato verze načítá config.js a skripty s novým označením, aby prohlížeč nepoužil starou kopii. Součástí zůstává sjednocení adres /garaz/ a /garaz/index.html.
+
+Ověřeno automaticky: obnovení platného přístupu, expirace, odstranění při odhlášení, výchozí vypnutý stav, odmítnutí přístupu jiného OAuth klienta, odmítnutí zneplatněného přístupu, vypnutí volby a poškozený uložený záznam. Regresní kontroly kalendáře a profilových fotek prošly. Skutečný návrat na telefonu ověř po nahrání na GitHub.

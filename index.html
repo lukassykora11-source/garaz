@@ -2,11 +2,22 @@
 <html lang="cs">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <script>
+    // Keep one address for browser settings, demo records and local photos.
+    // Use the existing index.html address so saved settings remain available.
+    (() => {
+      const url = new URL(window.location.href);
+      if (url.pathname.endsWith('/')) {
+        url.pathname += 'index.html';
+        window.location.replace(url.href);
+      }
+    })();
+  </script>
   <meta name="theme-color" content="#f5f4f0"><meta name="description" content="Společná garáž. Auta, opravy, nápady a termíny na jednom místě.">
   <title>DC RUST GARAGE — auta pod kontrolou</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="style.css?v=20261101-profile1">
-  <script src="config.js" defer></script><script src="core.js?v=20261101-profile1" defer></script><script src="google.js?v=20261101-profile1" defer></script><script src="calendar.js?v=20261101-profile1" defer></script><script src="app.js?v=20261101-profile1" defer></script>
+  <link rel="stylesheet" href="style.css?v=20261101-login1">
+  <script src="config.js?v=20261101-login1" defer></script><script src="core.js?v=20261101-login1" defer></script><script src="google.js?v=20261101-login1" defer></script><script src="calendar.js?v=20261101-login1" defer></script><script src="app.js?v=20261101-login1" defer></script>
 </head>
 <body>
   <aside class="sidebar">
