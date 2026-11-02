@@ -30,3 +30,23 @@ Používá se stejná tabulka, složka a propojený kalendář. Nic se nemusí z
 
 ## Ověření
 Prošly testy přepočtu rozměrů a JPEG kvality, zachování poměru stran a původních souborů, přenosu dokumentů beze změny, limitů, přiřazení smíšeného výběru k autu i úkolu, zákazu dokumentu jako úvodní fotky a ukládání odkazu na YouTube. Regresní testy kalendáře a profilových fotek prošly. Zmenšování bylo ověřené pomocí simulovaného obrazového rozhraní; skutečný převod fotky a její orientaci z konkrétního telefonu ověř po nasazení.
+
+
+## Google Cloud — přepnutí do ostrého provozu
+Nahraj také privacy.html a aktualizovaný index.html. Zásady ochrany údajů jsou veřejná informační stránka bez přihlášení. Před zveřejněním zkontroluj, že odpovídají tvému používání aplikace a že kontaktní e-mail je správný.
+Po dokončení nasazení otevři https://lukassykora11-source.github.io/garaz/privacy.html a ověř, že se zobrazí zásady, nikoli chyba 404.
+V Google Auth Platform → Branding vyplň:
+- Application home page: https://lukassykora11-source.github.io/garaz/
+- Application privacy policy link: https://lukassykora11-source.github.io/garaz/privacy.html
+- Authorized domain: lukassykora11-source.github.io
+- Název Garaz a vlastní podpůrný i kontaktní e-mail.
+Terms of service link není podle zobrazeného hlášení podmínkou přepnutí a může zůstat prázdný. Logo v Google přihlašování je volitelné a může vyvolat potřebu ověření značky.
+Ulož Branding a vrať se do Audience → Publish app. Přepnutí ani případné ověření není automaticky dokončené nahráním těchto souborů.
+
+
+## Jednoduchá přihlašovací obrazovka
+Před přihlášením se zobrazuje pouze představení aplikace, tlačítko Přihlásit přes Google, volba zapamatování a odkaz na ochranu údajů. Ukázková auta ani nastavení společné tabulky, složky a kalendáře se před přihlášením nezobrazují. Stará místní ukázková data se nemažou ani nepřenášejí do Googlu.
+Po přihlášení se načte společná garáž. V Nastavení je účet, tabulka, přílohy a kalendář. Technické hodnoty připojení jsou v zavřené rozbalovací sekci Pokročilé nastavení připojení. Přístup k této sekci nenahrazuje Google oprávnění k datům.
+Pokud instalace nemá vůbec nastavený Client ID, přihlašovací stránka nabídne rozbalovací nastavení pro dokončení instalace. Jinak se technický formulář před přihlášením nevykresluje.
+Pro tuto úpravu se mění app.js, style.css a index.html. Můžeš nahrát celý obsah ZIP; svůj config.js ponech.
+Ověřeno: vstup bez přihlášení i přes odkaz na jinou záložku, skrytí technických údajů, návrat po odhlášení, obnova platné relace i neúspěšná obnova a náhradní nastavení chybějící instalace. Regresní testy kalendáře a příloh prošly. Rozložení na skutečném telefonu ověř po nasazení.
