@@ -50,3 +50,10 @@ Po přihlášení se načte společná garáž. V Nastavení je účet, tabulka,
 Pokud instalace nemá vůbec nastavený Client ID, přihlašovací stránka nabídne rozbalovací nastavení pro dokončení instalace. Jinak se technický formulář před přihlášením nevykresluje.
 Pro tuto úpravu se mění app.js, style.css a index.html. Můžeš nahrát celý obsah ZIP; svůj config.js ponech.
 Ověřeno: vstup bez přihlášení i přes odkaz na jinou záložku, skrytí technických údajů, návrat po odhlášení, obnova platné relace i neúspěšná obnova a náhradní nastavení chybějící instalace. Regresní testy kalendáře a příloh prošly. Rozložení na skutečném telefonu ověř po nasazení.
+
+
+## Kompaktní úvod se všemi auty
+Na úvodním přehledu se zobrazují všechna aktivní auta, bez dřívějšího omezení na tři. Na počítači jsou malé vodorovné karty ve čtyřech sloupcích (pro sedm aut dvě řady). Zůstává fotka nebo ilustrace, název, rok/SPZ, počet otevřených úkolů a upozornění na termín. Kliknutí otevře detail auta.
+Souhrnné ukazatele zůstávají nahoře. Pod auty jsou tři nejbližší otevřené úkoly a tři nejbližší termíny; úplné seznamy jsou dál dostupné přes tlačítka i menu. Na nižší obrazovce se přehled automaticky zhušťuje. Na mobilu se karty přeskupí do dvou sloupců a obsah může vyžadovat rolování, aby zůstal čitelný.
+Ověřeno v prohlížeči se sedmi zkušebními vozy a šesti úkoly, včetně prostoru 1300 × 650 px bez svislého rolování a otevření detailu sedmého auta. Soukromá data z Googlu nebyla k testu načítána. Při velkém zvětšení stránky nebo mimořádně dlouhých textech může být potřeba rolovat.
+Pro tuto úpravu se mění app.js, style.css a index.html. Nahraj obsah složky garaz-kalendar a ponech svůj config.js. Přihlášení, úložiště, fotky a kalendář se nemění.
