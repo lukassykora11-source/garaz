@@ -96,11 +96,14 @@ body.dark .car-art>.year{background:#283025cb;color:#e0e8d9}
   #menu-toggle{display:grid;place-items:center;width:42px;height:42px;padding:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;font-size:22px}
   .signed-out #menu-toggle{display:none}
   .sidebar,.signed-out .sidebar{display:none}
-  .menu-open .sidebar{display:block;position:absolute;top:58px;left:0;width:min(100%,340px);max-height:calc(100dvh - 58px);overflow:auto;padding:14px;background:var(--side);box-shadow:var(--shadow);border:1px solid var(--line);border-radius:0 0 12px 0}
+  .menu-open .sidebar{display:flex;flex-direction:column;position:absolute;top:58px;left:0;width:min(100%,340px);max-height:calc(100dvh - 58px);overflow:auto;padding:14px;background:var(--side);box-shadow:var(--shadow);border:1px solid var(--line);border-radius:0 0 12px 0}
   .menu-open .sidebar nav{flex-direction:column;overflow:visible}
   .menu-open .sidebar nav button,.menu-open .settings-nav{min-height:44px;font-size:13px}
   .menu-open .sidebar-bottom{display:block;padding:0;margin:0;border-top:1px solid var(--line)}
-  .menu-open .sidebar .brand,.menu-open .sidebar-note{display:none}
+  .menu-open .sidebar-note{display:none}
+  .menu-open .sidebar .dc-brand{display:flex;order:1;flex:none;justify-content:center;margin:14px 0 0;padding-top:14px;border-top:1px solid var(--line)}
+  .menu-open .dc-brand .mobile-brand-name{display:none}
+  .menu-open .sidebar nav,.menu-open .sidebar-bottom{flex:none}
   .overview-page main,main{padding-top:14px}
   .overview-page .page-top,.page-top{margin-bottom:12px}
   .page-top .eyebrow{display:none}
