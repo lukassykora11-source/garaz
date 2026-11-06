@@ -112,9 +112,12 @@ window.GarazGoogle = (() => {
   }
   async function load() {
     if(!config.spreadsheetId)throw new Error('Vyber sdílenou tabulku nebo si vytvoř novou v Nastavení.');
-    const meta=await request('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(config.spreadsheetId)+'?fields=capabilities(canEdit)&supportsAllDrives=true');
+    const fileId=encodeURIComponent(config.spreadsheetId);
+    const [meta,r]=await Promise.all([
+      request('https://www.googleapis.com/drive/v3/files/'+fileId+'?fields=capabilities(canEdit)&supportsAllDrives=true'),
+      request(sheetBase()+'/values/'+encodeURIComponent('Udalosti!A:G'))
+    ]);
     capabilities=meta.capabilities||{};
-    const r=await request(sheetBase()+'/values/'+encodeURIComponent('Udalosti!A:G'));
     if(JSON.stringify(r.values?.[0])!==JSON.stringify(headers))throw new Error('Tabulka nemá očekávanou strukturu Garáže. Její záhlaví ani list Udalosti neměň.');
     return (r.values||[]).slice(1).filter(row=>row.some(Boolean)).map((row,i)=>{
       try {const e={id:row[0],entity:row[1],recordId:row[2],parents:JSON.parse(row[3]),at:row[4],author:row[5],data:JSON.parse(row[6])};if(!e.id||!e.recordId||!Array.isArray(e.parents)||!e.data||typeof e.data!=='object'||!['cars','tasks','notes','files'].includes(e.entity))throw Error();return e;}
@@ -130,8 +133,18 @@ window.GarazGoogle = (() => {
     if(!config.folderId)throw new Error('Nejdřív v Nastavení vyber složku pro fotky.');
     const meta=await request('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(config.folderId)+'?fields=capabilities(canAddChildren)&supportsAllDrives=true');
     if(!meta.capabilities?.canAddChildren)throw new Error('Do složky nemůžeš přidávat fotky. Ověř sdílení složky.');
-    const form=new FormData();form.append('metadata',new Blob([JSON.stringify({name:file.name,parents:[config.folderId]})],{type:'application/json'}));form.append('file',file);
-    return request('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink&supportsAllDrives=true',{method:'POST',body:form});
+    const boundary='garaz-'+crypto.randomUUID();
+    const mime=/^[\w.+-]+\/[\w.+-]+$/.test(file.type)?file.type:'application/octet-stream';
+    const metadata=JSON.stringify({name:file.name,mimeType:mime,parents:[config.folderId]});
+    const body=new Blob([
+      '--'+boundary+'\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n'+metadata+'\r\n',
+      '--'+boundary+'\r\nContent-Type: '+mime+'\r\n\r\n',
+      file,
+      '\r\n--'+boundary+'--\r\n'
+    ]);
+    return request('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink&supportsAllDrives=true',{
+      method:'POST',headers:{'Content-Type':'multipart/related; boundary='+boundary},body
+    });
   }
   async function photo(id){return request('https://www.googleapis.com/drive/v3/files/'+encodeURIComponent(id)+'?alt=media&supportsAllDrives=true',{blob:true});}
   async function authorizeCalendar(){

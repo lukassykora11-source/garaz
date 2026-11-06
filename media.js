@@ -2,7 +2,12 @@
   'use strict';
   const imageTypes=['image/jpeg','image/png','image/webp'];
   const documents=['pdf','doc','docx','xls','xlsx','ppt','pptx','odt','ods','txt','csv','rtf'];
-  const isImage=file=>imageTypes.includes(file.type||file.mime);
+  const imageExtensions=/\.(jpe?g|png|webp|heic|heif)$/i;
+  const isImage=file=>{
+    const mime=file.type||file.mime||'';
+    return imageTypes.includes(mime)||['image/heic','image/heif'].includes(mime)||
+      ((!mime||mime==='application/octet-stream')&&imageExtensions.test(file.name||''));
+  };
   function validate(files,imagesOnly=false,max=8){
     if(!files.length)throw new Error('Vyber alespoň jeden soubor.');
     if(files.length>max)throw new Error('Vyber nejvýš '+max+' souborů najednou.');
@@ -28,7 +33,7 @@
       const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.8));
       if(!blob||blob.type!=='image/jpeg')throw new Error('Prohlížeč nedokázal uložit zmenšenou fotku do JPG.');
       // Never inflate a small existing image; retain it unchanged instead.
-      if(scale===1&&blob.size>=file.size)return file;
+      if(scale===1&&imageTypes.includes(file.type)&&blob.size>=file.size)return file;
       return new File([blob],file.name.replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg',lastModified:file.lastModified});
     }finally{URL.revokeObjectURL(url);}
   }
