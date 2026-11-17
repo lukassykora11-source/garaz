@@ -182,3 +182,18 @@ function saveCalendar_(ss,config,user,payload) {
     return {...next,_heads:[next.revision],_conflict:false};
   } finally { lock.releaseLock(); }
 }
+
+function diagnostikaGaraze() {
+  const config = PropertiesService.getScriptProperties().getProperties();
+  const id = String(config.SPREADSHEET_ID || '').trim();
+  if (!id) throw new Error('Ve vlastnostech skriptu chybí SPREADSHEET_ID.');
+  if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+    throw new Error('SPREADSHEET_ID musí obsahovat pouze ID tabulky. Zkontroluj, zda v něm není celý odkaz, mezera nebo předpona ID:.');
+  }
+  const ss = SpreadsheetApp.openById(id);
+  console.log('Otevřená tabulka: ' + ss.getName());
+  console.log('Odkaz: ' + ss.getUrl());
+  const events = eventRows_(ss);
+  console.log('Počet záznamů: ' + events.length);
+  console.log('Záznamy aut: ' + events.filter(row => row.entity === 'cars').length);
+}
