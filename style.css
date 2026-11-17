@@ -116,3 +116,10 @@ body.dark .car-art>.year{background:#283025cb;color:#e0e8d9}
 .login-panel .login-remember { display: flex; gap: 10px; align-items: center; }
 .login-panel .login-remember input { width: auto; margin: 0; }
 .login-panel #login-form .login-button { justify-self: start; }
+
+/* Keep editor controls visible while only the fields scroll. */
+#editor[open] { display: flex; flex-direction: column; overflow: hidden; }
+#editor .dialog-head { flex: none; }
+#editor-form { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+#form-fields { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 6px; }
+#editor .form-actions { flex: none; padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--panel); }
