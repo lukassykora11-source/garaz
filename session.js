@@ -14,7 +14,14 @@ window.GarazGoogle = (() => {
     if (refresh) (remember ? localStorage : sessionStorage).setItem(key,refresh);
   }
 
+  const photoCachePrefix = 'garaz.private.photos.v1:';
+  const photoCacheLifetime = 30 * 24 * 60 * 60 * 1000;
+
   function logout() {
+    const account = profile?.email;
+    if (account && globalThis.caches) {
+      caches.keys().then(names => Promise.all(names.filter(name => name.startsWith(photoCachePrefix + account + ':')).map(name => caches.delete(name)))).catch(() => {});
+    }
     generation++;
     try { localStorage.removeItem(key); sessionStorage.removeItem(key); } catch {}
     token = refresh = '';
@@ -119,9 +126,39 @@ window.GarazGoogle = (() => {
   }
 
   async function photo(id) {
+    if (!profile) throw new Error('Nejdřív se přihlas.');
+    const session = generation;
+    const cacheName = photoCachePrefix + profile.email + ':' + config.spreadsheetId;
+    const cacheUrl = location.origin + '/private-photo-cache/' + encodeURIComponent(id);
+    let cache;
+    try {
+      if (globalThis.caches) {
+        cache = await caches.open(cacheName);
+        const saved = await cache.match(cacheUrl);
+        if (saved && Date.now() - Number(saved.headers.get('X-Garaz-Saved')) < photoCacheLifetime) {
+          const blob = await saved.blob();
+          if (session !== generation) throw new Error('Přihlášení se mezitím změnilo.');
+          return blob;
+        }
+      }
+    } catch { cache = null; }
+    if (session !== generation) throw new Error('Přihlášení se mezitím změnilo.');
     const result = await rpc('file',{id});
-    const mime = /^(image\/(jpeg|png|webp|heic|heif)|application\/pdf)$/.test(result.mime) ? result.mime : 'application/octet-stream';
-    return new Blob([Uint8Array.from(atob(result.base64),value=>value.charCodeAt(0))],{type:mime});
+    const image = /^image\/(jpeg|png|webp|heic|heif)$/.test(result.mime);
+    const mime = image || result.mime === 'application/pdf' ? result.mime : 'application/octet-stream';
+    const blob = new Blob([Uint8Array.from(atob(result.base64),value=>value.charCodeAt(0))],{type:mime});
+    if (cache && image && blob.size <= 5 * 1024 * 1024 && session === generation) {
+      try {
+        await cache.put(cacheUrl,new Response(blob,{headers:{'Content-Type':mime,'X-Garaz-Saved':String(Date.now())}}));
+        if (session !== generation) await caches.delete(cacheName);
+        else {
+          const keys = await cache.keys();
+          await Promise.all(keys.slice(0,Math.max(0,keys.length-80)).map(key=>cache.delete(key)));
+        }
+      } catch {}
+    }
+    if (session !== generation) throw new Error('Přihlášení se mezitím změnilo.');
+    return blob;
   }
 
   async function upload(file) {
