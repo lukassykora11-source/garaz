@@ -7,7 +7,7 @@
   const colors=['#799073','#ca986c','#8597a8','#b4877d','#999276','#777e84'];
   const labels={overview:'Přehled',cars:'Moje auta',tasks:'Úkoly',calendar:'Kalendář',notes:'Poznámky a odkazy',photos:'Fotky a soubory',settings:'Nastavení a přístup',car:'Detail auta'};
   let mode='demo',events=[],data=C.reduce([]),view='overview',carId='',carTab='tasks',busy=false,uploading=false,month=new Date(),filters={q:'',car:'',status:'open'},edit=null,lastSync='',toastTimer;
-  let restoringLogin=false,connecting=false;
+  let restoringLogin=false,connecting=false,loadError='';
   let renderVersion=0;const photoUrls=new Map();
   let calendarBinding=null,calendarConfigError='',calendarSetupBusy=false;
   const calendarState={running:false,message:'',error:'',lastSync:''};
@@ -31,7 +31,7 @@
   try {const stored=JSON.parse(localStorage.getItem(prefix)||'null');setData(Array.isArray(stored)?stored:seed());}catch{setData(seed());}
   if(localStorage.getItem('garaz.theme')==='dark')document.body.classList.add('dark');
   const compareHeads=(a,b)=>JSON.stringify([...(a||[])].sort())===JSON.stringify([...(b||[])].sort());
-  async function loadCloud(){const rows=await G.load();setData(rows);lastSync=new Intl.DateTimeFormat('cs-CZ',{hour:'2-digit',minute:'2-digit'}).format(new Date());}
+  async function loadCloud(){let rows;try{rows=await G.load();loadError='';}catch(error){loadError=error.message;throw error;}setData(rows);lastSync=new Intl.DateTimeFormat('cs-CZ',{hour:'2-digit',minute:'2-digit'}).format(new Date());}
   async function write(entity,id,record,parents){
     if(busy)throw new Error('Počkej na dokončení předchozího ukládání.');
     busy=true;
@@ -189,6 +189,7 @@
     $('#connection').textContent=mode==='demo'?'Ukázkový režim':G.ready()?(G.canEdit?'Google · '+(lastSync||'připojeno'):'Google · čtení'):'Přihlášení vypršelo';$('#connection').classList.toggle('online',mode==='cloud'&&G.ready());
     $('#account').textContent=mode==='cloud'?(G.profile?.given_name||G.profile?.email||'G')[0].toLocaleUpperCase('cs'):'G';
     const banners=[];
+    if(loadError)banners.push('<strong>Evidence se nenačetla.</strong> '+e(loadError)+' '+button('Zkusit znovu','reload-data'));
     if(mode==='demo')banners.push('UKÁZKA · Zkoušej bez obav. Změny zůstávají v tomto prohlížeči, do Googlu se neposílají. '+button('Připojit Google →','view-settings'));
     else if(!G.ready())banners.push('Přihlášení vypršelo. '+button('Přihlásit znovu','connect'));
     if(data.conflicts.length)banners.push('⚠ '+data.conflicts.length+' souběžně upravených záznamů. Otevři je, porovnej verze a ulož společnou podobu.');
@@ -353,9 +354,9 @@
   }
   async function connected(p,restoring){
     const desiredView=view;calendarBinding=null;calendarConfigError='';calendarState.error='';calendarState.message='';mode='cloud';clearPhotos();setData([]);view='overview';lastSync='';render();
-    if(G.config.spreadsheetId){try{await Promise.all([loadCloud(),refreshCalendarBinding()]);view='overview';}catch(error){notify(error.message);}}
+    if(G.config.spreadsheetId){try{await Promise.all([loadCloud(),refreshCalendarBinding()]);view='overview';}catch(error){loadError=error.message;}}
     if(restoring)view=desiredView;
-    setTimeout(()=>syncCalendar(false),800);render();notify('Přihlášeno jako '+p.email+'. '+(G.config.spreadsheetId?'':'Vyber nebo vytvoř společnou tabulku.'));
+    setTimeout(()=>syncCalendar(false),800);render();if(!loadError)notify('Přihlášeno jako '+p.email+'. '+(G.config.spreadsheetId?'':'Vyber nebo vytvoř společnou tabulku.'));
   }
   async function action(name,target){
     if(restoringLogin)throw new Error('Počkej na obnovení přihlášení.');
@@ -397,7 +398,8 @@
     if(name==='export-ics'){download('garaz-kalendar.ics',C.ics(tasks().filter(t=>matches(t)),data.cars),'text/calendar;charset=utf-8');return;}
     if(name==='export-json'){download('garaz-zaznamy-'+today()+'.json',JSON.stringify({version:1,exportedAt:new Date().toISOString(),mode,events},null,2),'application/json');return;}
     if(name==='open-photo'){const f=data.files.find(f=>f.id===id);if(!f||f.removed)throw new Error('Soubor není dostupný.');const blob=mode==='cloud'?await G.photo(f.driveId):await localPhoto(f.id);if(!blob)throw new Error('Soubor není dostupný.');const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=f.name||'soubor';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);return;}
-    if(name==='logout'){G.logout();calendarBinding=null;calendarState.message='';calendarState.error='';clearPhotos();mode='demo';setData([]);navigate('settings');return;}
+    if(name==='reload-data'){try{await loadCloud();}finally{render();}return;}
+    if(name==='logout'){loadError='';G.logout();calendarBinding=null;calendarState.message='';calendarState.error='';clearPhotos();mode='demo';setData([]);navigate('settings');return;}
     if(name==='reset-demo'){if(!confirm('Vrátit ukázkové záznamy do výchozího stavu? Data v Googlu zůstanou beze změny.'))return;const rows=seed();localStorage.setItem(prefix,JSON.stringify(rows));if(mode==='demo'){setData(rows);clearPhotos();render();}notify('Ukázka je připravená znovu.');}
   }
   function updatePhotoTasks(id){const sel=$('#editor-form [name=taskId]');if(sel)sel.innerHTML='<option value="">Jen k autu</option>'+tasks().filter(t=>t.carId===id).map(t=>`<option value="${e(t.id)}">${e(t.title)}</option>`).join('');}
@@ -434,7 +436,7 @@
   $('#editor').addEventListener('cancel',ev=>{if(busy||uploading)ev.preventDefault();else{releaseCoverPreview();edit=null;}});
   $('#theme').addEventListener('click',()=>{document.body.classList.toggle('dark');localStorage.setItem('garaz.theme',document.body.classList.contains('dark')?'dark':'light');render();});
   $('#account').addEventListener('click',()=>navigate('settings'));
-  $('#sync').addEventListener('click',async()=>{if(restoringLogin)return;try{if(mode==='cloud'){if(!G.ready()){render();return;}await Promise.all([loadCloud(),refreshCalendarBinding()]);render();await syncCalendar(false);notify('Data jsou aktuální.');}else notify('Používáš místní ukázku. Společná data připojíš v Nastavení.');}catch(err){notify(err.message);}});
+  $('#sync').addEventListener('click',async()=>{if(restoringLogin)return;try{if(mode==='cloud'){if(!G.ready()){render();return;}await Promise.all([loadCloud(),refreshCalendarBinding()]);render();await syncCalendar(false);notify('Data jsou aktuální.');}else notify('Používáš místní ukázku. Společná data připojíš v Nastavení.');}catch(err){render();notify(err.message);}});
   window.addEventListener('storage',ev=>{if(ev.key===prefix&&mode==='demo'&&!busy){try{setData(JSON.parse(ev.newValue)||seed());render();}catch{}}});
   window.addEventListener('hashchange',()=>{setMobileMenu(false);const hash=location.hash.slice(1);if(hash.startsWith('car/')){carId=decodeURIComponent(hash.slice(4));view='car';}else if(labels[hash])view=hash;render();});
   window.addEventListener('beforeunload',ev=>{if(busy||uploading||calendarState.running||calendarSetupBusy){ev.preventDefault();ev.returnValue='';}});
